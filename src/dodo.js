@@ -10,11 +10,10 @@ export default class Dodo {
   toArray() { return [...this] }
 
   *[Symbol.iterator]() {
-    const rowObj = {}
-    let descs = {}
+    let desc = {}
     for (const colname of Object.keys(this.array.index))
-      descs[colname] = {get: () => this.array[i][this.array.index[colname]]}
-    Object.defineProperties(rowObj, descs)
+      desc[colname] = {get: () => this.array[i][this.array.index[colname]]}
+    const rowObj = Object.defineProperties({}, desc)
 
     let i = -1
     const len = this.array.length
@@ -32,12 +31,17 @@ export default class Dodo {
   filter(fn) { return new Dodo(this.array, [...this.masks, fn]) }
 
   *map(fn) {
-    if (this.col)
-      for (const row of this)
-        yield fn ? fn(row[this.col]) : row[this.col]
-    else
-      for (const row of this)
-        yield fn ? fn(row) : row
+    // TODO: implement same magic as the filter
+    let desc = {}
+    for (const colname of Object.keys(this.array.index))
+      desc[colname] = {get: () => this.array[i][this.array.index[colname]]}
+    const rowObj = Object.defineProperties({}, desc)
+
+    let i = -1
+    for (const row of this) { // eslint-disable-line no-unused-vars
+      ++i
+      yield fn(rowObj)
+    }
   }
 
   uniq(fn) { return new Set(this.map(fn)) }
@@ -49,11 +53,11 @@ export default class Dodo {
     return i
   }
 
-  groupBy(colname) {
-    const uniques = this[colname].uniq()
+  group(colname) {
+    const uniques = this.uniq(d => d[colname])
     let hash = {}
     for (const val of uniques) {
-      hash[val] = this[colname].eq(val)
+      hash[val] = this.filter(d => d[colname] == val)
     }
     return new Flock(hash)
   }
