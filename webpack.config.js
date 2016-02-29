@@ -2,11 +2,11 @@ var webpack = require('webpack')
 var path = require('path')
 
 var config = {
-  entry: path.resolve(__dirname, 'src/perspective.js'),
+  entry: path.resolve(__dirname, 'src/dodo.js'),
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'perspective.js',
-    library: 'Perspective',
+    filename: 'dodos.js',
+    library: 'Dodos',
     libraryTarget: 'umd',
   },
   resolve: {

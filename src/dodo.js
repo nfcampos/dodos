@@ -1,11 +1,11 @@
 import {or} from './util'
 import {first, filter} from './symbols'
 
-export default class Perspective {
+export default class Dodo {
   constructor(array, masks, colname) {
     let desc = {}
     for (const colname of Object.keys(array.index))
-      desc[colname] = {get: () => new Perspective(array, masks, colname)}
+      desc[colname] = {get: () => new Dodo(array, masks, colname)}
     Object.defineProperties(this, desc)
 
     this.array = array
@@ -22,7 +22,7 @@ export default class Perspective {
         yield row
   }
 
-  [filter](fn) { return new Perspective(this.array, [...this.masks, fn]) }
+  [filter](fn) { return new Dodo(this.array, [...this.masks, fn]) }
 
   eq(comp) {
     return this[filter](row => row[this.col] === comp)
@@ -56,23 +56,23 @@ export default class Perspective {
     for (const val of uniques) {
       hash[val] = this[colname].eq(val)
     }
-    return new PerspectiveGroup(hash)
+    return new Flock(hash)
   }
 }
 
-class PerspectiveGroup {
+class Flock {
   constructor(hash, prop, args) {
-    this.hash = hash instanceof PerspectiveGroup ? hash.hash : hash
+    this.hash = hash instanceof Flock ? hash.hash : hash
 
     if (prop)
       for (const [key, perspective] of this)
         this.hash[key] = args ? perspective[prop](...args) : perspective[prop]
 
-    if (this[first] instanceof Perspective) {
+    if (this[first] instanceof Dodo) {
 
       let desc = {}
       for (let colname of Object.keys(this[first].array.index))
-        desc[colname] = {get: () => new PerspectiveGroup(this, colname)}
+        desc[colname] = {get: () => new Flock(this, colname)}
       Object.defineProperties(this, desc)
 
     } else {
@@ -92,8 +92,8 @@ class PerspectiveGroup {
   get [first]() { return this[Symbol.iterator]().next().value[1] }
 }
 
-for (const method of Object.getOwnPropertyNames(Perspective.prototype))
-  if (!(method in PerspectiveGroup.prototype))
-    PerspectiveGroup.prototype[method] = function(...args) {
-      return new PerspectiveGroup(this, method, args)
+for (const method of Object.getOwnPropertyNames(Dodo.prototype))
+  if (!(method in Flock.prototype))
+    Flock.prototype[method] = function(...args) {
+      return new Flock(this, method, args)
     }

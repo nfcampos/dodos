@@ -2,7 +2,7 @@
   "name": "dodos",
   "version": "1.0.0",
   "description": "Pandas-inspired iterator-based data wrangling library for js",
-  "main": "dist/perspective.js",
+  "main": "dist/dodos.js",
   "scripts": {
     "build": "webpack",
     "prepublish": "npm run build",
@@ -10,14 +10,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nfcampos/perspective.git"
+    "url": "git+https://github.com/nfcampos/dodos.git"
   },
   "author": "Nuno Campos <nuno.campos@me.com> (https://github.com/nfcampos)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/nfcampos/perspective/issues"
+    "url": "https://github.com/nfcampos/dodos/issues"
   },
-  "homepage": "https://github.com/nfcampos/perspective",
+  "homepage": "https://github.com/nfcampos/dodos",
   "devDependencies": {
     "babel-core": "^6.5.1",
     "babel-eslint": "^5.0.0",
