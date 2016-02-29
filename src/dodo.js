@@ -1,15 +1,7 @@
-import {or} from './util'
-import {first, filter} from './symbols'
+import {first} from './symbols'
 
 export default class Dodo {
   constructor(array, masks, colname) {
-    let descs = {}
-    for (const colname of Object.keys(array.index)) {
-      const desc = {get: () => new Dodo(array, masks, colname)}
-      descs[colname] = desc
-    }
-    Object.defineProperties(this, descs)
-
     this.array = array
     this.masks = masks || []
     this.col = colname ? array.index[colname] : false
@@ -18,21 +10,26 @@ export default class Dodo {
   toArray() { return [...this] }
 
   *[Symbol.iterator]() {
-    const masks = this.masks.length ? or(this.masks) : () => true
-    for (const row of this.array)
-      if (masks(row))
-        yield row
+    const rowObj = {}
+    let descs = {}
+    for (const colname of Object.keys(this.array.index))
+      descs[colname] = {get: () => this.array[i][this.array.index[colname]]}
+    Object.defineProperties(rowObj, descs)
+
+    let i = -1
+    const len = this.array.length
+    while (++i < len) {
+      let j = -1
+      let bool = true
+      let masksLen = this.masks.length
+      while (bool && ++j < masksLen)
+        bool = bool && this.masks[j](rowObj)
+      if (bool)
+        yield this.array[i]
+    }
   }
 
-  [filter](fn) { return new Dodo(this.array, [...this.masks, fn]) }
-
-  eq(comp) {
-    return this[filter](row => row[this.col] === comp)
-  }
-
-  between(down, up) {
-    return this[filter](row => row[this.col] <= up && row[this.col] >= down)
-  }
+  filter(fn) { return new Dodo(this.array, [...this.masks, fn]) }
 
   *map(fn) {
     if (this.col)
