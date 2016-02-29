@@ -16,7 +16,7 @@ export default class Dodo {
   toArray() { return [...this] }
 
   *[Symbol.iterator]() {
-    const masks = or(this.masks)
+    const masks = this.masks.length ? or(this.masks) : () => true
     for (const row of this.array)
       if (masks(row))
         yield row
