@@ -12,12 +12,12 @@
     "type": "git",
     "url": "git+https://github.com/nfcampos/perspective.git"
   },
-  "author": "Nuno Campos",
+  "author": "Nuno Campos <nuno.campos@me.com> (https://github.com/nfcampos)",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/nfcampos/perspective/issues"
   },
-  "homepage": "https://github.com/nfcampos/perspective#readme",
+  "homepage": "https://github.com/nfcampos/perspective",
   "devDependencies": {
     "babel-core": "^6.5.1",
     "babel-eslint": "^5.0.0",
