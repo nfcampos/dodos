@@ -3,10 +3,12 @@ import {first, filter} from './symbols'
 
 export default class Dodo {
   constructor(array, masks, colname) {
-    let desc = {}
-    for (const colname of Object.keys(array.index))
-      desc[colname] = {get: () => new Dodo(array, masks, colname)}
-    Object.defineProperties(this, desc)
+    let descs = {}
+    for (const colname of Object.keys(array.index)) {
+      const desc = {get: () => new Dodo(array, masks, colname)}
+      descs[colname] = desc
+    }
+    Object.defineProperties(this, descs)
 
     this.array = array
     this.masks = masks || []
@@ -45,7 +47,7 @@ export default class Dodo {
 
   count() {
     let i = 0
-    for (const row of this)
+    for (const row of this) // eslint-disable-line no-unused-vars
       ++i
     return i
   }
@@ -77,7 +79,7 @@ class Flock {
 
     } else {
 
-      // still not sure about this part
+      // still unsure about this part
       this.hash[Symbol.iterator] = function*() {
         for (const [key, iter] of Object.entries(this))
           yield [key, [...iter]]
