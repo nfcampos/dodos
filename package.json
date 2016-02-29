@@ -2,7 +2,7 @@
   "name": "perspective",
   "version": "1.0.0",
   "description": "Pandas-inspired iterator-based data wrangling library for js",
-  "main": "src/index.js",
+  "main": "dist/perspective.js",
   "scripts": {
     "build": "webpack",
     "prepublish": "npm run build",

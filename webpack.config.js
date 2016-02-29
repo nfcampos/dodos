@@ -2,12 +2,12 @@ var webpack = require('webpack')
 var path = require('path')
 
 var config = {
-  entry: [
-     __dirname + '/src/index.js'
-  ],
+  entry: path.resolve(__dirname, 'src/perspective.js'),
   output: {
-    path: __dirname + '/dist',
+    path: path.resolve(__dirname, 'dist'),
     filename: 'perspective.js',
+    library: 'Perspective',
+    libraryTarget: 'umd',
   },
   resolve: {
     extensions: ['', '.js'],
@@ -17,17 +17,14 @@ var config = {
         {
           test: /\.jsx?$/,
           loader: 'babel',
-          include: [
-            path.resolve(__dirname, 'src'),
-          ]
+          include: path.resolve(__dirname, 'src'),
         },
     ],
   },
   plugins: [
     new webpack.optimize.OccurenceOrderPlugin(),
-    new webpack.optimize.DedupePlugin(),
     new webpack.DefinePlugin({
-      'process.env': { 'NODE_ENV': JSON.stringify('production') },
+      'process.env.NODE_ENV': JSON.stringify('production'),
     }),
   ],
 }
