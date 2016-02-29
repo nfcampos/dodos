@@ -1,7 +1,7 @@
 'use strict'
 
 require('babel-register')
-require('regenerator/runtime')
+require('babel-polyfill')
 
 const Dodo = require('../src/dodo').default
 const table = require('./fixture/table').default
