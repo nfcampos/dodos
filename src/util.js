@@ -1,10 +1,15 @@
-export const or = (fns) => {
-  const len = fns.length
-  return (arg) => {
-    let i = -1
-    let bool = false
-    while (++i < len)
-      bool = bool || fns[i](arg)
-    return bool
+export const and = (filters) => (row) => {
+  let bool = true
+  for (const mask of filters) {
+    bool = bool && mask(row)
+    if (!bool)
+      break
   }
+  return bool
+}
+
+export const flow = (fns) => (arg) => {
+  for (const fn of fns)
+    arg = fn(arg)
+  return arg
 }

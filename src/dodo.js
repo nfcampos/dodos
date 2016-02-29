@@ -1,47 +1,43 @@
-import {first} from './symbols'
+import {flow, and} from './util'
+
+const Arrays = new WeakMap()
 
 export default class Dodo {
-  constructor(array, masks, colname) {
-    this.array = array
-    this.masks = masks || []
-    this.col = colname ? array.index[colname] : false
+  constructor(array, filters, maps) {
+    Arrays.set(this, array)
+    this.filters = filters || []
+    this.maps = maps || []
   }
 
   toArray() { return [...this] }
 
   *[Symbol.iterator]() {
-    let desc = {}
-    for (const colname of Object.keys(this.array.index))
-      desc[colname] = {get: () => this.array[i][this.array.index[colname]]}
-    const rowObj = Object.defineProperties({}, desc)
+    const filters = and(this.filters)
+    const maps = this.maps.length ? flow(this.maps) : false
 
-    let i = -1
-    const len = this.array.length
-    while (++i < len) {
-      let j = -1
-      let bool = true
-      let masksLen = this.masks.length
-      while (bool && ++j < masksLen)
-        bool = bool && this.masks[j](rowObj)
-      if (bool)
-        yield this.array[i]
+    let desc = {}
+    for (const [colname, index] of Object.entries(Arrays.get(this).index))
+      desc[colname] = {get: () => row[index]}
+    const proxy = Object.defineProperties({}, desc)
+
+    let row
+    if (maps) {
+      for (row of Arrays.get(this))
+        if (filters(proxy))
+          yield maps(proxy)
+    } else {
+      for (row of Arrays.get(this))
+        if (filters(proxy))
+          yield row
     }
   }
 
-  filter(fn) { return new Dodo(this.array, [...this.masks, fn]) }
+  filter(fn) {
+    return new Dodo(Arrays.get(this), [...this.filters, fn], this.maps)
+  }
 
-  *map(fn) {
-    // TODO: implement same magic as the filter
-    let desc = {}
-    for (const colname of Object.keys(this.array.index))
-      desc[colname] = {get: () => this.array[i][this.array.index[colname]]}
-    const rowObj = Object.defineProperties({}, desc)
-
-    let i = -1
-    for (const row of this) { // eslint-disable-line no-unused-vars
-      ++i
-      yield fn(rowObj)
-    }
+  map(fn) {
+    return new Dodo(Arrays.get(this), this.filters, [...this.maps, fn])
   }
 
   uniq(fn) { return new Set(this.map(fn)) }
@@ -54,49 +50,26 @@ export default class Dodo {
   }
 
   group(colname) {
-    const uniques = this.uniq(d => d[colname])
-    let hash = {}
-    for (const val of uniques) {
-      hash[val] = this.filter(d => d[colname] == val)
-    }
-    return new Flock(hash)
+    let map = []
+    for (const val of this.uniq(d => d[colname]))
+      map.push([val, this.filter(d => d[colname] == val)])
+    return Flock(map)
   }
 }
 
-class Flock {
-  constructor(hash, prop, args) {
-    this.hash = hash instanceof Flock ? hash.hash : hash
+function Flock(map, prop, args) {
+  map = new Map(map)
 
-    if (prop)
-      for (const [key, perspective] of this)
-        this.hash[key] = args ? perspective[prop](...args) : perspective[prop]
-
-    if (this[first] instanceof Dodo) {
-
-      let desc = {}
-      for (let colname of Object.keys(this[first].array.index))
-        desc[colname] = {get: () => new Flock(this, colname)}
-      Object.defineProperties(this, desc)
-
-    } else {
-
-      // still unsure about this part
-      this.hash[Symbol.iterator] = function*() {
-        for (const [key, iter] of Object.entries(this))
-          yield [key, [...iter]]
-      }
-      return this.hash
-
-    }
+  if (prop) {
+    for (const [key, perspective] of map.entries())
+      map.set(key, perspective[prop](...args))
   }
 
-  *[Symbol.iterator]() { yield* Object.entries(this.hash) }
+  // if the values are Dodos add the Dodo methods to the returned Map
+  // otherwise just return a regular Map
+  if (map.values().next().value instanceof Dodo)
+    for (const method of Object.getOwnPropertyNames(Dodo.prototype))
+      map[method] = (...args) => Flock(map, method, args)
 
-  get [first]() { return this[Symbol.iterator]().next().value[1] }
+  return map
 }
-
-for (const method of Object.getOwnPropertyNames(Dodo.prototype))
-  if (!(method in Flock.prototype))
-    Flock.prototype[method] = function(...args) {
-      return new Flock(this, method, args)
-    }
