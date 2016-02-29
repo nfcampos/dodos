@@ -1,5 +1,5 @@
 {
-  "name": "perspective",
+  "name": "dodos",
   "version": "1.0.0",
   "description": "Pandas-inspired iterator-based data wrangling library for js",
   "main": "dist/perspective.js",
