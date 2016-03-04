@@ -1,75 +1,196 @@
-import {flow, and} from './util'
+import invariant from 'invariant'
+
+const MAP_ACTION = 'MAP_ACTION'
+const FILTER_ACTION = 'FILTER_ACTION'
+const SLICE_ACTION = 'SLICE_ACTION'
+
+const action = Symbol('action')
+const meta = Symbol('meta')
+const noActions = []
 
 const Arrays = new WeakMap()
+const ArraysMetadata = new WeakMap()
+
+const required = () => {
+  throw new Error('Dodo - missing required argument')
+}
 
 export default class Dodo {
-  constructor(array, filters, maps) {
+  constructor(array=required(), actions=noActions) {
     Arrays.set(this, array)
-    this.filters = filters || []
-    this.maps = maps || []
+    if (!ArraysMetadata.has(array))
+      ArraysMetadata.set(array, {
+        length: array.length,
+        columns: new Set(Object.keys(array.index)),
+      })
+    this.actions = actions
   }
+
+  get [meta]() { return ArraysMetadata.get(Arrays.get(this)) }
 
   toArray() { return [...this] }
 
+  uniq() {
+    return [...new Set(this)]
+  }
+
   *[Symbol.iterator]() {
-    const filters = and(this.filters)
-    const maps = this.maps.length ? flow(this.maps) : false
+    const array = Arrays.get(this)
+    const Index = array.index
+    const nrOfActions = this.actions.length
 
-    let desc = {}
-    for (const [colname, index] of Object.entries(Arrays.get(this).index))
-      desc[colname] = {get: () => row[index]}
-    const proxy = Object.defineProperties({}, desc)
+    if (!nrOfActions) {
 
-    let row
-    if (maps) {
-      for (row of Arrays.get(this))
-        if (filters(proxy))
-          yield maps(proxy)
+      for (const row of array)
+        yield row
+      return
+
     } else {
-      for (row of Arrays.get(this))
-        if (filters(proxy))
-          yield row
+
+      const lastActionIndex = this.actions.length - 1
+      let lastRowIndex = ArraysMetadata.get(array).length - 1
+
+      // TODO: if there is a slice before any filter
+      // set rowIndex to slice.start - 1
+      let rowIndex = -1
+      while (rowIndex++ < lastRowIndex) {
+        let row = array[rowIndex]
+        let actionIndex = -1
+        let I = Index
+        while (actionIndex++ < lastActionIndex) {
+          const action = this.actions[actionIndex]
+          if (action.type == SLICE_ACTION) {
+            if (++action.counter < action.first)
+              break
+            if (action.counter == action.last)
+              lastRowIndex = rowIndex
+          } if (action.type == FILTER_ACTION) {
+            if (!action(row, I))
+              break
+          } if (action.type == MAP_ACTION) {
+            row = action(row, I)
+            I = action.I || I
+          }
+          if (actionIndex == lastActionIndex)
+            yield row
+        }
+      }
+
     }
   }
 
-  filter(fn) {
-    return new Dodo(Arrays.get(this), [...this.filters, fn], this.maps)
+  [action](action) {
+    return new Dodo(Arrays.get(this), [...this.actions, action])
   }
 
-  map(fn) {
-    return new Dodo(Arrays.get(this), this.filters, [...this.maps, fn])
+  filter(fn=required()) {
+    invariant(typeof fn == 'function', `Dodo#filter(fn) — fn not a function`)
+    fn.type = FILTER_ACTION
+    return this[action](fn)
   }
 
-  uniq(fn) { return new Set(this.map(fn)) }
-
-  count() {
-    let i = 0
-    for (const row of this) // eslint-disable-line no-unused-vars
-      ++i
-    return i
+  map(fn=required()) {
+    invariant(typeof fn == 'function', `Dodo#map(fn) — fn not a function`)
+    fn.type = MAP_ACTION
+    return this[action](fn)
   }
 
-  group(colname) {
+  col(name=required()) {
+    invariant(this[meta].columns.has(name),
+      `Dodo#col(name) — name ${name} not in index`)
+    return this.map((row, I) => row[I[name]])
+  }
+
+  cols(names=required()) {
+    names.forEach(name => invariant(
+      this[meta].columns.has(name),
+      `Dodo#cols(names) — name ${name} not in index`
+    ))
+    const fn = (row, I) => names.map(name => row[I[name]])
+    fn.I = {}
+    names.forEach((name, i) => fn.I[name] = i)
+    return this.map(fn)
+  }
+
+  slice(start=0, end) {
+    const len = this[meta].length
+    if (typeof end != 'number')
+      end = len
+    if (end == len && start == 0)
+      return this
+    invariant(start >= 0, `Dodo#slice(start, end) — start smaller than 0`)
+    invariant(end >= 0, `Dodo#slice(start, end) — end smaller than 0`)
+    invariant(start < end, `Dodo#slice(start, end) — end larger than start`)
+    return this[action]({
+      type: SLICE_ACTION,
+      counter: -1,
+      first: start,
+      last: end - 1,
+    })
+  }
+
+  skip(amount=required()) {
+    invariant(amount > 0, `Dodo#skip(amount) — amount smaller than 0`)
+    return this.slice(amount)
+  }
+
+  take(amount=required()) {
+    invariant(amount > 0, `Dodo#take(amount) — amount smaller than 0`)
+    return this.slice(0, amount)
+  }
+
+  group(name=required()) {
+    // TODO: check col in cols
     let map = []
-    for (const val of this.uniq(d => d[colname]))
-      map.push([val, this.filter(d => d[colname] == val)])
+    for (const val of this.col(name).uniq())
+      map.push([val, this.filter((d, I) => d[I[name]] == val)])
     return Flock(map)
   }
-}
 
-function Flock(map, prop, args) {
-  map = new Map(map)
+  reduce(fn=required(), init=required()) {
+    const oneColumn = !!this.actions
+      .filter(act => act.type == MAP_ACTION && !act.I).length
 
-  if (prop) {
-    for (const [key, perspective] of map.entries())
-      map.set(key, perspective[prop](...args))
+    if (oneColumn)
+      for (const row of this)
+        init = fn(init, row)
+    else
+      for (const row of this)
+        init = row.map((col, i) => fn(init[i] || init, col))
+    return init
   }
 
+  count() { return this.reduce(count => ++count, 0) }
+
+  sum() { return this.reduce((sum, el) => sum + el, 0) }
+
+  mean() { return this.sum() / this.count() }
+
+  min() { return this.reduce((min, el) => min < el ? min : el, Infinity) }
+
+  max() { return this.reduce((max, el) => max > el ? max : el, -Infinity) }
+}
+
+function Flock(map, method, args) {
+  map = new Map(map)
+
+  // if called with method arg call that method on all Dodos
+  if (method)
+    for (const [key, dodo] of map.entries())
+      map.set(key, dodo[method](...args))
+
   // if the values are Dodos add the Dodo methods to the returned Map
-  // otherwise just return a regular Map
+  // otherwise just return a regular Map with a map method
   if (map.values().next().value instanceof Dodo)
     for (const method of Object.getOwnPropertyNames(Dodo.prototype))
       map[method] = (...args) => Flock(map, method, args)
+  else
+    map.mapGroup = (fn) => {
+      const pushFn = (...args) => arr.push(fn(...args))
+      let arr = []
+      map.forEach(pushFn)
+      return arr
+    }
 
   return map
 }
