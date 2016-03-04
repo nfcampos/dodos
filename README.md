@@ -7,3 +7,5 @@ Note: requires regeneratorRuntime to be in scope
 ```js
 var regeneratorRuntime = require('regenerator/runtime')
 ```
+
+NOTE: This is very much a work in progress for now
