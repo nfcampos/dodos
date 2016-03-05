@@ -99,9 +99,7 @@ export default class Dodo {
 
   toArray() { return [...this] }
 
-  uniq() {
-    return [...new Set(this)]
-  }
+  uniq() { return [...new Set(this)] }
 
   filter(fn=required()) {
     invariant(typeof fn == 'function', `Dodo#filter(fn) — fn not a function`)

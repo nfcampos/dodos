@@ -1,4 +1,4 @@
-import tap from 'tap'
+import test from 'tape'
 import _ from 'lodash'
 
 import Dodo from '../src/dodo'
@@ -6,19 +6,19 @@ import table from './fixture/table'
 const array = [...table]
 const Index = table.index
 
-tap.test('no actions', t => {
+test('no actions', t => {
   const dodo = new Dodo(table)
   t.equal(dodo.actions.length, 0)
   t.same([...dodo], array)
   t.end()
 })
 
-tap.test('throws without an array', t => {
+test('throws without an array', t => {
   t.throws(() => new Dodo())
   t.end()
 })
 
-tap.test('slice', t => {
+test('slice', t => {
   const dodo = new Dodo(table)
   t.same(
     [...dodo.slice(0, 2)],
@@ -44,7 +44,7 @@ tap.test('slice', t => {
   t.end()
 })
 
-tap.test('slice shorthand: take', t => {
+test('slice shorthand: take', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.take(10).toArray(),
@@ -53,7 +53,7 @@ tap.test('slice shorthand: take', t => {
   t.end()
 })
 
-tap.test('slice shorthand: skip', t => {
+test('slice shorthand: skip', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.skip(3).toArray(),
@@ -62,7 +62,7 @@ tap.test('slice shorthand: skip', t => {
   t.end()
 })
 
-tap.test('slice + slice', t => {
+test('slice + slice', t => {
   const dodo = new Dodo(table)
   t.same(
     [...dodo.slice(0, 2).skip(2)],
@@ -92,7 +92,7 @@ tap.test('slice + slice', t => {
   t.end()
 })
 
-tap.test('filter', t => {
+test('filter', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.filter((row, I) => row[I.Date] == 4).toArray(),
@@ -111,7 +111,7 @@ tap.test('filter', t => {
   t.end()
 })
 
-tap.test('filter shorthand: filterBy', t => {
+test('filter shorthand: filterBy', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.filterBy('Date', d => d == 4).toArray(),
@@ -124,7 +124,7 @@ tap.test('filter shorthand: filterBy', t => {
   t.end()
 })
 
-tap.test('filter + filter', t => {
+test('filter + filter', t => {
   const dodo = new Dodo(table)
   const expected = array
     .filter(row => row[Index.Date] == 4)
@@ -144,7 +144,7 @@ tap.test('filter + filter', t => {
   t.end()
 })
 
-tap.test('map', t => {
+test('map', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.map((row, I) => row[I.Date]).toArray(),
@@ -163,7 +163,7 @@ tap.test('map', t => {
   t.end()
 })
 
-tap.test('map shorthand: col', t => {
+test('map shorthand: col', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.col('Date').toArray(),
@@ -174,7 +174,7 @@ tap.test('map shorthand: col', t => {
   t.end()
 })
 
-tap.test('map shorthand: cols', t => {
+test('map shorthand: cols', t => {
   const dodo = new Dodo(table)
   const cols = ['Date', 'Age', 'Height']
   t.same(
@@ -185,7 +185,7 @@ tap.test('map shorthand: cols', t => {
   t.end()
 })
 
-tap.test('multiple maps', t => {
+test('multiple maps', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.col('Date').map(d => d * 2).toArray(),
@@ -204,7 +204,7 @@ tap.test('multiple maps', t => {
   t.end()
 })
 
-tap.test('map + filter', t => {
+test('map + filter', t => {
   const dodo = new Dodo(table)
   const expected = array
     .filter(row => row[Index.Date] > 3)
@@ -254,7 +254,7 @@ tap.test('map + filter', t => {
   t.end()
 })
 
-tap.test('map + slice', t => {
+test('map + slice', t => {
   const dodo = new Dodo(table)
   const expected = array.map(row => row[Index.Date] * 2).slice(2, 4)
   t.same(
@@ -270,7 +270,7 @@ tap.test('map + slice', t => {
   t.end()
 })
 
-tap.test('filter + slice', t => {
+test('filter + slice', t => {
   const dodo = new Dodo(table)
   t.same(
     [...dodo.filter((row, I) => row[I.Date] == 4).slice(1)],
@@ -309,7 +309,7 @@ tap.test('filter + slice', t => {
   t.end()
 })
 
-tap.test('uniq', t => {
+test('uniq', t => {
   const dodo = new Dodo(table)
   t.true(Array.isArray(dodo.col('Date').uniq()))
   t.same(
@@ -319,9 +319,7 @@ tap.test('uniq', t => {
   t.end()
 })
 
-tap.test('map + filter + slice')
-
-tap.test('reduce of single column', t => {
+test('reduce of single column', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.col('Age').reduce((acc, a) => acc * a, 1),
@@ -330,7 +328,7 @@ tap.test('reduce of single column', t => {
   t.end()
 })
 
-tap.test('reduce over multiple columns', t => {
+test('reduce over multiple columns', t => {
   const dodo = new Dodo(table)
   t.same(
     dodo.reduceEach((acc, a) => acc + a, 0),
@@ -341,7 +339,7 @@ tap.test('reduce over multiple columns', t => {
   t.end()
 })
 
-tap.test('reduce shorthands', t => {
+test('reduce shorthands', t => {
   const dodo = new Dodo(table)
   const shorthands = [
     ['count', arr => arr.length],
@@ -371,7 +369,7 @@ tap.test('reduce shorthands', t => {
   t.end()
 })
 
-tap.test('groupBy', t => {
+test('groupBy', t => {
   const dodo = new Dodo(table)
   const grouped = dodo.groupBy('Age')
   const ageUniques = dodo.col('Age').uniq()
