@@ -6,6 +6,7 @@ const SLICE_ACTION = 'SLICE_ACTION'
 
 const action = Symbol('action')
 const meta = Symbol('meta')
+const reduceD = Symbol('reduceDispatch')
 const noActions = []
 
 const Arrays = new WeakMap()
@@ -139,8 +140,9 @@ export default class Dodo {
     return this.slice(0, amount)
   }
 
-  group(name=required()) {
-    // TODO: check col in cols
+  groupBy(name=required()) {
+    invariant(this[meta].columns.has(name),
+      `Dodo#group(name) — name ${name} not in index`)
     let map = []
     for (const val of this.col(name).uniq())
       map.push([val, this.filter((d, I) => d[I[name]] == val)])
@@ -148,27 +150,36 @@ export default class Dodo {
   }
 
   reduce(fn=required(), init=required()) {
-    const oneColumn = !!this.actions
-      .filter(act => act.type == MAP_ACTION && !act.I).length
-
-    if (oneColumn)
-      for (const row of this)
-        init = fn(init, row)
-    else
-      for (const row of this)
-        init = row.map((col, i) => fn(init[i] || init, col))
+    invariant(typeof fn == 'function', `Dodo#reduce(fn) — fn not a function`)
+    for (const row of this)
+      init = fn(init, row)
     return init
   }
 
-  count() { return this.reduce(count => ++count, 0) }
+  reduceEach(fn=required(), init=required()) {
+    invariant(typeof fn =='function', `Dodo#reduceEach(fn) — fn not a function`)
+    for (const row of this)
+      init = row.map((col, i) => fn(init[i] || init, col))
+    return init
+  }
 
-  sum() { return this.reduce((sum, el) => sum + el, 0) }
+  [reduceD](fn, init) {
+    const oneColumn = !!this.actions
+      .filter(act => act.type == MAP_ACTION && !act.I).length
+
+    if (oneColumn) return this.reduce(fn, init)
+    else return this.reduceEach(fn, init)
+  }
+
+  count() { return this[reduceD](count => ++count, 0) }
+
+  sum() { return this[reduceD]((sum, el) => sum + el, 0) }
+
+  min() { return this[reduceD]((min, el) => min < el ? min : el, Infinity) }
+
+  max() { return this[reduceD]((max, el) => max > el ? max : el, -Infinity) }
 
   mean() { return this.sum() / this.count() }
-
-  min() { return this.reduce((min, el) => min < el ? min : el, Infinity) }
-
-  max() { return this.reduce((max, el) => max > el ? max : el, -Infinity) }
 }
 
 function Flock(map, method, args) {
@@ -180,17 +191,10 @@ function Flock(map, method, args) {
       map.set(key, dodo[method](...args))
 
   // if the values are Dodos add the Dodo methods to the returned Map
-  // otherwise just return a regular Map with a map method
+  // otherwise just return a regular Map
   if (map.values().next().value instanceof Dodo)
     for (const method of Object.getOwnPropertyNames(Dodo.prototype))
       map[method] = (...args) => Flock(map, method, args)
-  else
-    map.mapGroup = (fn) => {
-      const pushFn = (...args) => arr.push(fn(...args))
-      let arr = []
-      map.forEach(pushFn)
-      return arr
-    }
 
   return map
 }

@@ -324,7 +324,7 @@ tap.test('reduce of single column', t => {
 tap.test('reduce over multiple columns', t => {
   const dodo = new Dodo(table)
   t.same(
-    dodo.reduce((acc, a) => acc + a, 0),
+    dodo.reduceEach((acc, a) => acc + a, 0),
     Object.values(Index)
       .map(i => array.reduce((arr, row) => [...arr, row[i]], []))
       .map(arr => arr.reduce((acc, a) => acc + a, 0))
@@ -332,4 +332,28 @@ tap.test('reduce over multiple columns', t => {
   t.end()
 })
 
-tap.test('groupBy')
+tap.test('reduce shorthand: count')
+tap.test('reduce shorthand: sum')
+tap.test('reduce shorthand: min')
+tap.test('reduce shorthand: max')
+tap.test('reduce shorthand: mean')
+
+tap.test('groupBy', t => {
+  const dodo = new Dodo(table)
+  const grouped = dodo.groupBy('Age')
+  dodo.col('Age').uniq().forEach(uniq => {
+    t.true(grouped.has(uniq))
+    t.true(grouped.get(uniq) instanceof Dodo)
+    t.true(grouped.get(uniq).actions.length == dodo.actions.length + 1)
+  })
+
+  t.test('Dodo prototype methods', t => {
+    for (const method of Object.getOwnPropertyNames(Dodo.prototype))
+      t.true(method in grouped && typeof grouped[method] == 'function')
+    for (const method of Object.getOwnPropertyNames(grouped)) {}
+
+    t.end()
+  })
+
+  t.end()
+})
