@@ -111,6 +111,19 @@ tap.test('filter', t => {
   t.end()
 })
 
+tap.test('filter shorthand: filterBy', t => {
+  const dodo = new Dodo(table)
+  t.same(
+    dodo.filterBy('Date', d => d == 4).toArray(),
+    array.filter(row => row[Index.Date] == 4)
+  )
+  t.same(
+    dodo.filterBy('Age', a => a <= 4).toArray(),
+    array.filter(row => row[Index.Age] <= 4)
+  )
+  t.end()
+})
+
 tap.test('filter + filter', t => {
   const dodo = new Dodo(table)
   const expected = array
@@ -364,8 +377,9 @@ tap.test('groupBy', t => {
   const ageUniques = dodo.col('Age').uniq()
 
   ageUniques.forEach(uniq => {
-    t.true(grouped.has(uniq))
-    t.true(grouped.get(uniq) instanceof Dodo)
+    t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
+    t.true(grouped.get(uniq) instanceof Dodo,
+      `value of uniq ${uniq} is not a dodo`)
     t.true(grouped.get(uniq).actions.length == dodo.actions.length + 1)
   })
 

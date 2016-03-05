@@ -109,6 +109,10 @@ export default class Dodo {
     return this[action](fn)
   }
 
+  filterBy(col=required(), fn=required()) {
+    return this.filter( (row, I) => fn(row[I[col]]) )
+  }
+
   map(fn=required()) {
     invariant(typeof fn == 'function', `Dodo#map(fn) — fn not a function`)
     fn.type = MAP_ACTION
