@@ -1,14 +1,10 @@
-'use strict'
+import tap from 'tap'
+import _ from 'lodash'
 
-require('babel-register')
-require('babel-polyfill')
-
-const Dodo = require('../src/dodo').default
-const table = require('./fixture/table').default
+import Dodo from '../src/dodo'
+import table from './fixture/table'
 const array = [...table]
 const Index = table.index
-
-const tap = require('tap')
 
 tap.test('no actions', t => {
   const dodo = new Dodo(table)
@@ -332,26 +328,87 @@ tap.test('reduce over multiple columns', t => {
   t.end()
 })
 
-tap.test('reduce shorthand: count')
-tap.test('reduce shorthand: sum')
-tap.test('reduce shorthand: min')
-tap.test('reduce shorthand: max')
-tap.test('reduce shorthand: mean')
+tap.test('reduce shorthands', t => {
+  const dodo = new Dodo(table)
+  const shorthands = [
+    ['count', arr => arr.length],
+    ['sum', arr => arr.reduce((a, b) => a + b, 0)],
+    ['min', arr => Math.min(...arr)],
+    ['max', arr => Math.max(...arr)],
+    ['mean', arr => _.mean(arr)],
+  ]
+  const col = 'Date'
+  const cols = ['Date', 'Age']
+  for (const s of shorthands)
+    t.test(s[0], t => {
+      t.same(
+        dodo.col(col)[s[0]](),
+        s[1](array.map(row => row[Index.Date])),
+        `${s[0]} over 1 column`
+      )
+      t.same(
+        dodo.cols(cols)[s[0]](),
+        cols
+          .map(col => array.map(row => row[Index[col]]))
+          .map(col => s[1](col)),
+          `${s[0]} over several columns`
+      )
+      t.end()
+    })
+  t.end()
+})
 
 tap.test('groupBy', t => {
   const dodo = new Dodo(table)
   const grouped = dodo.groupBy('Age')
-  dodo.col('Age').uniq().forEach(uniq => {
+  const ageUniques = dodo.col('Age').uniq()
+
+  ageUniques.forEach(uniq => {
     t.true(grouped.has(uniq))
     t.true(grouped.get(uniq) instanceof Dodo)
     t.true(grouped.get(uniq).actions.length == dodo.actions.length + 1)
   })
 
-  t.test('Dodo prototype methods', t => {
-    for (const method of Object.getOwnPropertyNames(Dodo.prototype))
-      t.true(method in grouped && typeof grouped[method] == 'function')
-    for (const method of Object.getOwnPropertyNames(grouped)) {}
+  t.test('Dodo prototype methods present', t => {
+    const methods = new Set(Object.getOwnPropertyNames(grouped))
+    for (const method of Object.getOwnPropertyNames(Dodo.prototype)) {
+      if (method == 'constructor') continue
+      t.true(methods.has(method), method + ' not present')
+      t.true(typeof grouped[method] == 'function', method + ' not function')
+    }
+    t.end()
+  })
 
+  t.test('groupBy().map()', t => {
+    const mappedGrouped = grouped.col('Date')
+    ageUniques.forEach(uniq => {
+      t.true(mappedGrouped.has(uniq), `uniq ${uniq} is missing`)
+      t.true(mappedGrouped.get(uniq) instanceof Dodo,
+        `value of uniq ${uniq} is not a dodo`)
+      t.true(mappedGrouped.get(uniq).actions.length
+        == grouped.get(uniq).actions.length + 1,
+        `dodo for uniq ${uniq} doesn't have the right number of actions`)
+
+      const expected = dodo.filter((row, I) => row[I.Age] == uniq).col('Date')
+      t.same(
+        mappedGrouped.get(uniq).toArray(),
+        expected.toArray()
+      )
+      t.same(
+        mappedGrouped.toArray().get(uniq),
+        expected.toArray()
+      )
+    })
+    t.end()
+  })
+
+  t.test('Dodo prototype methods absent after toArray', t => {
+    const groupedToArray = grouped.toArray()
+    const methods = new Set(Object.getOwnPropertyNames(groupedToArray))
+    for (const method of Object.getOwnPropertyNames(Dodo.prototype)) {
+      if (method == 'constructor') continue
+      t.false(methods.has(method), method + ' present')
+    }
     t.end()
   })
 

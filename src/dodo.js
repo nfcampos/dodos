@@ -5,8 +5,9 @@ const FILTER_ACTION = 'FILTER_ACTION'
 const SLICE_ACTION = 'SLICE_ACTION'
 
 const action = Symbol('action')
+const index = Symbol('index')
 const meta = Symbol('meta')
-const reduceD = Symbol('reduceDispatch')
+const dispatch = Symbol('dispatch')
 const noActions = []
 
 const Arrays = new WeakMap()
@@ -29,10 +30,26 @@ export default class Dodo {
 
   get [meta]() { return ArraysMetadata.get(Arrays.get(this)) }
 
-  toArray() { return [...this] }
+  get [index]() {
+    const lastMapWithIndex = this.actions
+      .filter(act => act.type == MAP_ACTION && act.I)
+      .slice(-1)
 
-  uniq() {
-    return [...new Set(this)]
+    if (lastMapWithIndex.length)
+      return lastMapWithIndex[0].I
+    else
+      return Arrays.get(this).index
+  }
+
+  [dispatch](method, fn, init) {
+    if (this[index] == Arrays.get(this).index)
+      return this[method](fn, init)
+    else
+      return this[method + 'Each'](fn, init)
+  }
+
+  [action](action) {
+    return new Dodo(Arrays.get(this), [...this.actions, action])
   }
 
   *[Symbol.iterator]() {
@@ -80,8 +97,10 @@ export default class Dodo {
     }
   }
 
-  [action](action) {
-    return new Dodo(Arrays.get(this), [...this.actions, action])
+  toArray() { return [...this] }
+
+  uniq() {
+    return [...new Set(this)]
   }
 
   filter(fn=required()) {
@@ -140,6 +159,44 @@ export default class Dodo {
     return this.slice(0, amount)
   }
 
+  reduce(fn=required(), init=required()) {
+    invariant(typeof fn == 'function', `Dodo#reduce(fn) — fn not a function`)
+    for (const row of this) {
+      init = fn(init, row)
+    }
+    return init
+  }
+
+  reduceEach(...args) {
+    return Object.keys(this[index])
+      .map(col => this.col(col).reduce(...args))
+  }
+
+  count() {
+    return this[dispatch]('reduce', count => ++count, 0)
+  }
+
+  sum() {
+    return this[dispatch]('reduce', (sum, el) => sum + el, 0)
+  }
+
+  min() {
+    return this[dispatch]('reduce', (min, el) => min < el ? min : el, Infinity)
+  }
+
+  max() {
+    return this[dispatch]('reduce', (max, el) => max > el ? max : el, -Infinity)
+  }
+
+  mean() {
+    if (this[index] == Arrays.get(this).index)
+      return this.sum() / this.count()
+    else {
+      const counts = this.count()
+      return this.sum().map((sum, i) => sum / counts[i])
+    }
+  }
+
   groupBy(name=required()) {
     invariant(this[meta].columns.has(name),
       `Dodo#group(name) — name ${name} not in index`)
@@ -148,38 +205,6 @@ export default class Dodo {
       map.push([val, this.filter((d, I) => d[I[name]] == val)])
     return Flock(map)
   }
-
-  reduce(fn=required(), init=required()) {
-    invariant(typeof fn == 'function', `Dodo#reduce(fn) — fn not a function`)
-    for (const row of this)
-      init = fn(init, row)
-    return init
-  }
-
-  reduceEach(fn=required(), init=required()) {
-    invariant(typeof fn =='function', `Dodo#reduceEach(fn) — fn not a function`)
-    for (const row of this)
-      init = row.map((col, i) => fn(init[i] || init, col))
-    return init
-  }
-
-  [reduceD](fn, init) {
-    const oneColumn = !!this.actions
-      .filter(act => act.type == MAP_ACTION && !act.I).length
-
-    if (oneColumn) return this.reduce(fn, init)
-    else return this.reduceEach(fn, init)
-  }
-
-  count() { return this[reduceD](count => ++count, 0) }
-
-  sum() { return this[reduceD]((sum, el) => sum + el, 0) }
-
-  min() { return this[reduceD]((min, el) => min < el ? min : el, Infinity) }
-
-  max() { return this[reduceD]((max, el) => max > el ? max : el, -Infinity) }
-
-  mean() { return this.sum() / this.count() }
 }
 
 function Flock(map, method, args) {
@@ -194,7 +219,8 @@ function Flock(map, method, args) {
   // otherwise just return a regular Map
   if (map.values().next().value instanceof Dodo)
     for (const method of Object.getOwnPropertyNames(Dodo.prototype))
-      map[method] = (...args) => Flock(map, method, args)
+      if (method != 'constructor')
+        map[method] = (...args) => Flock(map, method, args)
 
   return map
 }
