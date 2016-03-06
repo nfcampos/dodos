@@ -36,7 +36,7 @@
     "lodash": "^4.6.1",
     "nodemon": "^1.9.1",
     "npm-check": "^4.1.4",
-    "tape": "^4.5.0",
+    "tape": "^4.5.1",
     "webpack": "^1.12.14"
   },
   "dependencies": {
