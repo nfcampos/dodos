@@ -378,7 +378,6 @@ test('groupBy', t => {
     t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
     t.true(grouped.get(uniq) instanceof Dodo,
       `value of uniq ${uniq} is not a dodo`)
-    t.true(grouped.get(uniq).actions.length == dodo.actions.length + 1)
   })
 
   t.test('Dodo prototype methods present', t => {
@@ -397,9 +396,6 @@ test('groupBy', t => {
       t.true(mappedGrouped.has(uniq), `uniq ${uniq} is missing`)
       t.true(mappedGrouped.get(uniq) instanceof Dodo,
         `value of uniq ${uniq} is not a dodo`)
-      t.true(mappedGrouped.get(uniq).actions.length
-        == grouped.get(uniq).actions.length + 1,
-        `dodo for uniq ${uniq} doesn't have the right number of actions`)
 
       const expected = dodo.filter((row, I) => row[I.Age] == uniq).col('Date')
       t.same(

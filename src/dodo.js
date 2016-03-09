@@ -59,9 +59,7 @@ export default class Dodo {
 
     if (!nrOfActions) {
 
-      for (const row of array)
-        yield row
-      return
+      yield* array
 
     } else {
 
@@ -120,7 +118,8 @@ export default class Dodo {
   col(name=required()) {
     invariant(this[meta].columns.has(name),
       `Dodo#col(name) — name ${name} not in index`)
-    return this.map((row, I) => row[I[name]])
+    const col = this[index][name]
+    return this.map(row => row[col])
   }
 
   cols(names=required()) {
@@ -163,15 +162,14 @@ export default class Dodo {
 
   reduce(fn=required(), init=required()) {
     invariant(typeof fn == 'function', `Dodo#reduce(fn) — fn not a function`)
-    for (const row of this) {
+    for (const row of this)
       init = fn(init, row)
-    }
     return init
   }
 
   reduceEach(...args) {
-    return Object.keys(this[index])
-      .map(col => this.col(col).reduce(...args))
+    //TODO: this must be incredibly slow, same deal as groupBy
+    return Object.keys(this[index]).map(col => this.col(col).reduce(...args))
   }
 
   count() {
@@ -199,13 +197,22 @@ export default class Dodo {
     }
   }
 
-  groupBy(name=required()) {
+  groupBy(name=required(), fn) {
     invariant(this[meta].columns.has(name),
       `Dodo#group(name) — name ${name} not in index`)
-    let map = []
-    for (const val of this.col(name).uniq())
-      map.push([val, this.filter((d, I) => d[I[name]] == val)])
-    return Flock(map)
+    let map = new Map()
+    const I = this[index][name]
+    for (const row of this) {
+      const key = fn ? fn(row[I]) : row[I]
+      map.has(key)
+        ? map.get(key).push(row)
+        : map.set(key, [row])
+    }
+    for (const [key, array] of map) {
+      array.index = this[index]
+      map.set(key, new Dodo(array))
+    }
+    return Flock( map )
   }
 }
 
@@ -223,6 +230,8 @@ function Flock(map, method, args) {
     for (const method of Object.getOwnPropertyNames(Dodo.prototype))
       if (method != 'constructor')
         map[method] = (...args) => Flock(map, method, args)
+
+  map.mapEntries = fn => [...map.entries()].map(fn)
 
   return map
 }
