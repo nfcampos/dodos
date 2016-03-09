@@ -5,7 +5,7 @@
   "main": "dist/dodos.js",
   "scripts": {
     "build": "webpack",
-    "test": "tape -r babel-register -r babel-polyfill test/*.js | faucet",
+    "test": "tape -r babel-register -r babel-polyfill test/*.js",
     "test:watch": "nodemon -q -x 'npm test'",
     "test:cov": "babel-node node_modules/isparta/bin/isparta cover --report html test/*.js && open coverage/index.html",
     "prepush": "npm test",

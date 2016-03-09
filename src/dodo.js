@@ -1,4 +1,5 @@
 import invariant from 'invariant'
+import zip from 'lodash/zip'
 
 const MAP_ACTION = 'MAP_ACTION'
 const FILTER_ACTION = 'FILTER_ACTION'
@@ -172,47 +173,80 @@ export default class Dodo {
     return Object.keys(this[index]).map(col => this.col(col).reduce(...args))
   }
 
-  count() {
-    return this[dispatch]('reduce', count => ++count, 0)
-  }
+  count() { return this[dispatch]('reduce', ...REDUCERS.count) }
 
-  sum() {
-    return this[dispatch]('reduce', (sum, el) => sum + el, 0)
-  }
+  sum() { return this[dispatch]('reduce', ...REDUCERS.sum) }
 
-  min() {
-    return this[dispatch]('reduce', (min, el) => min < el ? min : el, Infinity)
-  }
+  min() { return this[dispatch]('reduce', ...REDUCERS.min) }
 
-  max() {
-    return this[dispatch]('reduce', (max, el) => max > el ? max : el, -Infinity)
-  }
+  max() { return this[dispatch]('reduce', ...REDUCERS.max) }
 
   mean() {
-    if (this[index] == Arrays.get(this).index)
-      return this.sum() / this.count()
-    else {
+    if (this[index] == Arrays.get(this).index) {
+      const stats = this.stats('count', 'sum')
+      return stats[1] / stats[0]
+    } else {
       const counts = this.count()
       return this.sum().map((sum, i) => sum / counts[i])
     }
   }
 
+  stats(...methods) {
+    const [fns, inits] = zip(...methods.map(m => REDUCERS[m]))
+    return this.reduce(combineReducers(fns), inits)
+  }
+
   groupBy(name=required(), fn) {
     invariant(this[meta].columns.has(name),
       `Dodo#group(name) — name ${name} not in index`)
-    let map = new Map()
-    const I = this[index][name]
-    for (const row of this) {
-      const key = fn ? fn(row[I]) : row[I]
+    const map = new Map()
+    const grouper = createGrouper(map, fn, this[index][name])
+    for (const row of this) grouper(row)
+    map.forEach(arrayToDodo(this[index]))
+    return Flock(map)
+  }
+}
+
+const combineReducers = (fns) => {
+  const len = fns.length
+  return (accs, row) => {
+    let i = -1
+    while (++i < len) {
+      accs[i] = fns[i](accs[i], row)
+    }
+    return accs
+  }
+}
+
+const REDUCERS = {
+  max: [(max, el) => max > el ? max : el, -Infinity],
+  min: [(min, el) => min < el ? min : el, Infinity],
+  sum: [(sum, el) => sum + el, 0],
+  count: [count => ++count, 0],
+}
+
+function createGrouper(map, fn, col) {
+  if (fn) {
+    return function(row) {
+      const key = fn(row[col])
       map.has(key)
         ? map.get(key).push(row)
         : map.set(key, [row])
     }
-    for (const [key, array] of map) {
-      array.index = this[index]
-      map.set(key, new Dodo(array))
+  } else {
+    return function(row) {
+      const key = row[col]
+      map.has(key)
+        ? map.get(key).push(row)
+        : map.set(key, [row])
     }
-    return Flock( map )
+  }
+}
+
+function arrayToDodo(Index) {
+  return function(array, key, map) {
+    array.index = Index
+    map.set(key, new Dodo(array))
   }
 }
 
@@ -231,7 +265,17 @@ function Flock(map, method, args) {
       if (method != 'constructor')
         map[method] = (...args) => Flock(map, method, args)
 
-  map.mapEntries = fn => [...map.entries()].map(fn)
+  map.mapEntries = fn => {
+    const len = map.size
+    const entries = [...map.entries()]
+    let i = -1
+    let entry
+    while (++i < len) {
+      entry = entries[i]
+      entries[i] = fn(entry[1], entry[0], map)
+    }
+    return entries
+  }
 
   return map
 }

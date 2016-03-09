@@ -265,8 +265,6 @@ test('map + slice', t => {
     dodo.slice(2, 4).map((row, I) => row[I.Date] * 2).toArray(),
     expected
   )
-  // TODO: map + slice + map + slice
-  // TODO: slice + map + slice + map
   t.end()
 })
 
@@ -366,6 +364,10 @@ test('reduce shorthands', t => {
       )
       t.end()
     })
+  t.same(
+    dodo.col(col).stats('sum', 'count'),
+    [dodo.col(col).sum(), dodo.col(col).count()]
+  )
   t.end()
 })
 
