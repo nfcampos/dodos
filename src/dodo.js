@@ -14,12 +14,9 @@ const noActions = []
 const Arrays = new WeakMap()
 const ArraysMetadata = new WeakMap()
 
-const required = () => {
-  throw new Error('Dodo - missing required argument')
-}
-
 export default class Dodo {
-  constructor(array=required(), actions=noActions) {
+  constructor(array, actions=noActions) {
+    invariant(array, `new Dodo(array) - array is required`)
     Arrays.set(this, array)
     if (!ArraysMetadata.has(array))
       ArraysMetadata.set(array, {
@@ -100,30 +97,35 @@ export default class Dodo {
 
   uniq() { return [...new Set(this)] }
 
-  filter(fn=required()) {
-    invariant(typeof fn == 'function', `Dodo#filter(fn) — fn not a function`)
+  filter(fn) {
+    invariant(fn && typeof fn == 'function',
+      `Dodo#filter(fn) — fn not a function`)
     fn.type = FILTER_ACTION
     return this[action](fn)
   }
 
-  filterBy(col=required(), fn=required()) {
+  filterBy(col, fn) {
+    invariant(col, `Dodo#filterBy(col, fn) - col is required`)
+    invariant(fn, `Dodo#filterBy(col, fn) - fn is required`)
     return this.filter( (row, I) => fn(row[I[col]]) )
   }
 
-  map(fn=required()) {
-    invariant(typeof fn == 'function', `Dodo#map(fn) — fn not a function`)
+  map(fn) {
+    invariant(fn && typeof fn == 'function', `Dodo#map(fn) — fn not a function`)
     fn.type = MAP_ACTION
     return this[action](fn)
   }
 
-  col(name=required()) {
+  col(name) {
+    invariant(name, `Dodo#col(name) - name is required`)
     invariant(this[meta].columns.has(name),
       `Dodo#col(name) — name ${name} not in index`)
     const col = this[index][name]
     return this.map(row => row[col])
   }
 
-  cols(names=required()) {
+  cols(names) {
+    invariant(names, `Dodo#cols(names) - names is required`)
     names.forEach(name => invariant(
       this[meta].columns.has(name),
       `Dodo#cols(names) — name ${name} not in index`
@@ -151,25 +153,30 @@ export default class Dodo {
     })
   }
 
-  skip(amount=required()) {
+  skip(amount) {
+    invariant(amount, `Dodo#skip(amount) - amount is required`)
     invariant(amount > 0, `Dodo#skip(amount) — amount smaller than 0`)
     return this.slice(amount)
   }
 
-  take(amount=required()) {
+  take(amount) {
+    invariant(amount, `Dodo#take(amount) - amount is required`)
     invariant(amount > 0, `Dodo#take(amount) — amount smaller than 0`)
     return this.slice(0, amount)
   }
 
-  reduce(fn=required(), init=required()) {
-    invariant(typeof fn == 'function', `Dodo#reduce(fn) — fn not a function`)
+  reduce(fn, init) {
+    invariant(init != null, `Dodo#reduce(fn, init) - init is required`)
+    invariant(fn && typeof fn == 'function',
+      `Dodo#reduce(fn) — fn not a function`)
     for (const row of this)
       init = fn(init, row)
     return init
   }
 
   reduceEach(...args) {
-    //TODO: this must be incredibly slow, same deal as groupBy
+    //TODO: make this not ridiculously slow
+    //TODO: make this work for .stats()
     return Object.keys(this[index]).map(col => this.col(col).reduce(...args))
   }
 
@@ -186,6 +193,7 @@ export default class Dodo {
       const stats = this.stats('count', 'sum')
       return stats[1] / stats[0]
     } else {
+      //TODO: this is still the slow version of mean
       const counts = this.count()
       return this.sum().map((sum, i) => sum / counts[i])
     }
@@ -196,7 +204,8 @@ export default class Dodo {
     return this.reduce(combineReducers(fns), inits)
   }
 
-  groupBy(name=required(), fn) {
+  groupBy(name, fn) {
+    invariant(name, `Dodo#groupBy(name, fn) - name is required`)
     invariant(this[meta].columns.has(name),
       `Dodo#group(name) — name ${name} not in index`)
     const map = new Map()
