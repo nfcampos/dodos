@@ -8,7 +8,7 @@ const Index = table.index
 
 test('no actions', t => {
   const dodo = new Dodo(table)
-  t.is(dodo.actions.length, 0)
+  t.ok(dodo.actions.length === 0)
   t.same([...dodo], array)
 })
 
@@ -310,11 +310,15 @@ test('reduce of single column', t => {
 
 test('reduce over multiple columns', t => {
   const dodo = new Dodo(table)
+  const cols = Object.keys(Index)
   t.same(
     dodo.reduceEach((acc, a) => acc + a, 0),
-    Object.values(Index)
-      .map(i => array.reduce((arr, row) => [...arr, row[i]], []))
-      .map(arr => arr.reduce((acc, a) => acc + a, 0))
+    _.zipObject(
+      cols,
+      Object.values(Index)
+        .map(i => array.reduce((arr, row) => [...arr, row[i]], []))
+        .map(arr => arr.reduce((acc, a) => acc + a, 0))
+    )
   )
 })
 
@@ -337,15 +341,23 @@ test('reduce shorthands', t => {
     )
     t.same(
       dodo.cols(cols)[s[0]](),
-      cols
-        .map(col => array.map(row => row[Index[col]]))
-        .map(col => s[1](col)),
-        `${s[0]} over several columns`
+      _.zipObject(
+        cols,
+        cols.map(col => array.map(row => row[Index[col]])).map(col => s[1](col))
+      ),
+      `${s[0]} over several columns`
     )
   }
   t.same(
     dodo.col(col).stats('sum', 'count'),
     [dodo.col(col).sum(), dodo.col(col).count()]
+  )
+  t.same(
+    dodo.cols(cols).stats('sum', 'count'),
+    {
+      Date: [dodo.col('Date').sum(), dodo.col('Date').count()],
+      Age: [dodo.col('Age').sum(), dodo.col('Age').count()],
+    }
   )
 })
 

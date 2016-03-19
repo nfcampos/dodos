@@ -1,5 +1,7 @@
 import invariant from 'invariant'
 import zip from 'lodash/zip'
+import zipObject from 'lodash/zipObject'
+import clone from 'lodash/clone'
 
 const MAP_ACTION = 'MAP_ACTION'
 const FILTER_ACTION = 'FILTER_ACTION'
@@ -7,6 +9,7 @@ const SLICE_ACTION = 'SLICE_ACTION'
 
 const action = Symbol('action')
 const index = Symbol('index')
+const names = Symbol('names')
 const meta = Symbol('meta')
 const dispatch = Symbol('dispatch')
 const noActions = []
@@ -37,6 +40,11 @@ export default class Dodo {
       return lastMapWithIndex[0].I
     else
       return Arrays.get(this).index
+  }
+
+  get [names]() {
+    const I = this[index]
+    return Object.keys(I).sort((a, b) => I[a] > I[b] ? 1 : -1)
   }
 
   [dispatch](method, fn, init) {
@@ -131,8 +139,7 @@ export default class Dodo {
       `Dodo#cols(names) — name ${name} not in index`
     ))
     const fn = (row, I) => names.map(name => row[I[name]])
-    fn.I = {}
-    names.forEach((name, i) => fn.I[name] = i)
+    fn.I = zipObject(names, [...names.keys()])
     return this.map(fn)
   }
 
@@ -174,10 +181,14 @@ export default class Dodo {
     return init
   }
 
-  reduceEach(...args) {
-    //TODO: make this not ridiculously slow
-    //TODO: make this work for .stats()
-    return Object.keys(this[index]).map(col => this.col(col).reduce(...args))
+  reduceEach(fn, init) {
+    const len = Object.keys(this[index]).length
+    const fns = Array(len).fill(fn)
+    const inits = fns.map(() => clone(init))
+    return zipObject(
+      this[names],
+      this.reduce(combineReducers(fns, true), inits)
+    )
   }
 
   count() { return this[dispatch]('reduce', ...REDUCERS.count) }
@@ -189,19 +200,19 @@ export default class Dodo {
   max() { return this[dispatch]('reduce', ...REDUCERS.max) }
 
   mean() {
-    if (this[index] == Arrays.get(this).index) {
-      const stats = this.stats('count', 'sum')
+    const stats = this.stats('count', 'sum')
+    if (Array.isArray(stats)) {
       return stats[1] / stats[0]
     } else {
-      //TODO: this is still the slow version of mean
-      const counts = this.count()
-      return this.sum().map((sum, i) => sum / counts[i])
+      for (const name of Object.keys(stats))
+        stats[name] = stats[name][1] / stats[name][0]
+      return stats
     }
   }
 
   stats(...methods) {
     const [fns, inits] = zip(...methods.map(m => REDUCERS[m]))
-    return this.reduce(combineReducers(fns), inits)
+    return this[dispatch]('reduce', combineReducers(fns), inits)
   }
 
   groupBy(name, fn) {
@@ -216,14 +227,24 @@ export default class Dodo {
   }
 }
 
-const combineReducers = (fns) => {
+const combineReducers = (fns, spread) => {
   const len = fns.length
-  return (accs, row) => {
-    let i = -1
-    while (++i < len) {
-      accs[i] = fns[i](accs[i], row)
+  if (spread) {
+    return (accs, row) => {
+      let i = len
+      while (i--) {
+        accs[i] = fns[i](accs[i], row[i])
+      }
+      return accs
     }
-    return accs
+  } else {
+    return (accs, row) => {
+      let i = len
+      while (i--) {
+        accs[i] = fns[i](accs[i], row)
+      }
+      return accs
+    }
   }
 }
 
@@ -259,6 +280,9 @@ function arrayToDodo(Index) {
   }
 }
 
+const dodoMethods = Object.getOwnPropertyNames(Dodo.prototype)
+dodoMethods.filter(method => method != 'constructor')
+
 function Flock(map, method, args) {
   map = new Map(map)
 
@@ -268,23 +292,22 @@ function Flock(map, method, args) {
       map.set(key, dodo[method](...args))
 
   // if the values are Dodos add the Dodo methods to the returned Map
-  // otherwise just return a regular Map
   if (map.values().next().value instanceof Dodo)
-    for (const method of Object.getOwnPropertyNames(Dodo.prototype))
-      if (method != 'constructor')
-        map[method] = (...args) => Flock(map, method, args)
+    for (const method of dodoMethods)
+      map[method] = (...args) => Flock(map, method, args)
 
-  map.mapEntries = fn => {
-    const len = map.size
-    const entries = [...map.entries()]
-    let i = -1
-    let entry
-    while (++i < len) {
-      entry = entries[i]
-      entries[i] = fn(entry[1], entry[0], map)
-    }
-    return entries
-  }
+  // mapEntries method with same signature as native Map#forEach()
+  map.mapEntries = mapEntries
 
   return map
+}
+
+function mapEntries(fn) {
+  const entries = [...this.entries()]
+  let i = this.size
+  while (i--) {
+    let entry = entries[i]
+    entries[i] = fn(entry[1], entry[0], this)
+  }
+  return entries
 }
