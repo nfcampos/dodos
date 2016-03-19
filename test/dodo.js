@@ -308,7 +308,7 @@ test('reduce of single column', t => {
   )
 })
 
-test('reduce over multiple columns', t => {
+test.skip('reduce over multiple columns', t => {
   const dodo = new Dodo(table)
   const cols = Object.keys(Index)
   t.same(
@@ -330,6 +330,7 @@ test('reduce shorthands', t => {
     ['min', arr => Math.min(...arr)],
     ['max', arr => Math.max(...arr)],
     ['mean', arr => _.mean(arr)],
+    ['countUniq', arr => new Set(arr).size],
   ]
   const col = 'Date'
   const cols = ['Date', 'Age']
@@ -349,8 +350,13 @@ test('reduce shorthands', t => {
     )
   }
   t.same(
-    dodo.col(col).stats('sum', 'count'),
-    [dodo.col(col).sum(), dodo.col(col).count()]
+    dodo.col(col).stats('sum', 'count', 'mean', 'countUniq'),
+    [
+      dodo.col(col).sum(),
+      dodo.col(col).count(),
+      dodo.col(col).mean(),
+      dodo.col(col).countUniq()
+    ]
   )
   t.same(
     dodo.cols(cols).stats('sum', 'count'),
@@ -358,6 +364,12 @@ test('reduce shorthands', t => {
       Date: [dodo.col('Date').sum(), dodo.col('Date').count()],
       Age: [dodo.col('Age').sum(), dodo.col('Age').count()],
     }
+  )
+  t.same(
+    dodo.cols(cols).stats(...shorthands.map(s => s[0])),
+    _.zipObject(cols,
+      cols.map(col => dodo.col(col).stats(...shorthands.map(s => s[0])))
+    )
   )
 })
 

@@ -1,7 +1,7 @@
 import invariant from 'invariant'
 import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
-import clone from 'lodash/clone'
+import unzip from 'lodash/unzip'
 
 const MAP_ACTION = 'MAP_ACTION'
 const FILTER_ACTION = 'FILTER_ACTION'
@@ -11,7 +11,7 @@ const action = Symbol('action')
 const index = Symbol('index')
 const names = Symbol('names')
 const meta = Symbol('meta')
-const dispatch = Symbol('dispatch')
+const dispatchReduce = Symbol('dispatchReduce')
 const noActions = []
 
 const Arrays = new WeakMap()
@@ -47,13 +47,6 @@ export default class Dodo {
     return Object.keys(I).sort((a, b) => I[a] > I[b] ? 1 : -1)
   }
 
-  [dispatch](method, fn, init) {
-    if (this[index] == Arrays.get(this).index)
-      return this[method](fn, init)
-    else
-      return this[method + 'Each'](fn, init)
-  }
-
   [action](action) {
     return new Dodo(Arrays.get(this), [...this.actions, action])
   }
@@ -71,10 +64,17 @@ export default class Dodo {
 
       const lastActionIndex = this.actions.length - 1
       let lastRowIndex = ArraysMetadata.get(array).length - 1
+      let rowIndex
 
-      // TODO: if there is a slice before any filter
-      // set rowIndex to slice.start - 1
-      let rowIndex = -1
+      const firstNonMap = this.actions
+        .filter(act => act.type != MAP_ACTION)
+        .slice(0, 1)
+
+      if (firstNonMap.type == SLICE_ACTION)
+        rowIndex = firstNonMap.start - 1
+      else
+        rowIndex = -1
+
       while (rowIndex++ < lastRowIndex) {
         let row = array[rowIndex]
         let actionIndex = -1
@@ -172,48 +172,49 @@ export default class Dodo {
     return this.slice(0, amount)
   }
 
-  reduce(fn, init) {
-    invariant(init != null, `Dodo#reduce(fn, init) - init is required`)
-    invariant(fn && typeof fn == 'function',
-      `Dodo#reduce(fn) — fn not a function`)
-    for (const row of this)
-      init = fn(init, row)
-    return init
+  [dispatchReduce](args) {
+    if (this[index] == Arrays.get(this).index)
+      return this.reduce(...args())
+    else
+      return this._reduceEach(args)
   }
 
-  reduceEach(fn, init) {
-    const len = Object.keys(this[index]).length
-    const fns = Array(len).fill(fn)
-    const inits = fns.map(() => clone(init))
+  reduce(fn, init, final=identity) {
+    invariant(init != null, `Dodo#reduce(fn, init, final) - init is required`)
+    invariant(fn && typeof fn == 'function',
+      `Dodo#reduce(fn, init, final) — fn not a function`)
+    for (const row of this)
+      init = fn(init, row)
+    return final === identity ? init : final(init)
+  }
+
+  _reduceEach(args) {
+    const [fns, inits, finals] = unzip(this[names].map(() => args()))
     return zipObject(
       this[names],
-      this.reduce(combineReducers(fns, true), inits)
+      this.reduce(combineReducers(fns, true), inits, spread(finals))
     )
   }
 
-  count() { return this[dispatch]('reduce', ...REDUCERS.count) }
-
-  sum() { return this[dispatch]('reduce', ...REDUCERS.sum) }
-
-  min() { return this[dispatch]('reduce', ...REDUCERS.min) }
-
-  max() { return this[dispatch]('reduce', ...REDUCERS.max) }
-
-  mean() {
-    const stats = this.stats('count', 'sum')
-    if (Array.isArray(stats)) {
-      return stats[1] / stats[0]
-    } else {
-      for (const name of Object.keys(stats))
-        stats[name] = stats[name][1] / stats[name][0]
-      return stats
-    }
-  }
-
   stats(...methods) {
-    const [fns, inits] = zip(...methods.map(m => REDUCERS[m]))
-    return this[dispatch]('reduce', combineReducers(fns), inits)
+    const args = () => {
+      const [fns, inits, finals] = zip(...methods.map(m => REDUCERS[m]()))
+      return [combineReducers(fns), inits, spread(finals)]
+    }
+    return this[dispatchReduce](args)
   }
+
+  count() { return this[dispatchReduce](REDUCERS.count) }
+
+  sum() { return this[dispatchReduce](REDUCERS.sum) }
+
+  min() { return this[dispatchReduce](REDUCERS.min) }
+
+  max() { return this[dispatchReduce](REDUCERS.max) }
+
+  countUniq() { return this[dispatchReduce](REDUCERS.countUniq) }
+
+  mean() { return this[dispatchReduce](REDUCERS.mean) }
 
   groupBy(name, fn) {
     invariant(name, `Dodo#groupBy(name, fn) - name is required`)
@@ -224,6 +225,17 @@ export default class Dodo {
     for (const row of this) grouper(row)
     map.forEach(arrayToDodo(this[index]))
     return Flock(map)
+  }
+}
+
+const spread = (fns) => {
+  const len = fns.length
+  return value => {
+    let i = len
+    while (i--) {
+      value[i] = fns[i](value[i])
+    }
+    return value
   }
 }
 
@@ -248,11 +260,19 @@ const combineReducers = (fns, spread) => {
   }
 }
 
+const identity = a => a
+
 const REDUCERS = {
-  max: [(max, el) => max > el ? max : el, -Infinity],
-  min: [(min, el) => min < el ? min : el, Infinity],
-  sum: [(sum, el) => sum + el, 0],
-  count: [count => ++count, 0],
+  max: () => [(max, el) => max > el ? max : el, -Infinity, identity],
+  min: () => [(min, el) => min < el ? min : el, Infinity, identity],
+  sum: () => [(sum, el) => sum + el, 0, identity],
+  mean: () => [
+    ([count, sum], el) => [++count, sum + el],
+    [0, 0],
+    ([count, sum]) => sum / count
+  ],
+  count: () => [count => ++count, 0, identity],
+  countUniq: () => [(set, el) => set.add(el), new Set(), set => set.size],
 }
 
 function createGrouper(map, fn, col) {
