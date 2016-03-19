@@ -1,6 +1,6 @@
 {
   "name": "dodos",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Pandas-inspired iterator-based data wrangling library for js",
   "main": "dist/dodos.js",
   "scripts": {
