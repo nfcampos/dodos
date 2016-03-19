@@ -15,7 +15,7 @@ var config = {
   module: {
     loaders: [
         {
-          test: /\.jsx?$/,
+          test: /\.js$/,
           loader: 'babel',
           include: path.resolve(__dirname, 'src'),
         },
