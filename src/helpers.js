@@ -3,19 +3,20 @@ import zipObject from 'lodash/zipObject'
 export function compose(funcs) {
   var len = funcs.length
   return function(r) {
-    var value = r;
-    for(var i=len-1; i>=0; i--) {
-      value = funcs[i](value);
+    var value = r
+    var i = len
+    while (i--) {
+      value = funcs[i](value)
     }
-    return value;
+    return value
   }
 }
 
 export function spread(fns) {
   const len = fns.length
   return function(value) {
-    let i = len
-    while (i--) {
+    let i = -1
+    while (++i < len) {
       value[i] = fns[i](value[i])
     }
     return value
@@ -26,16 +27,16 @@ export function combineReducers(fns, spread) {
   const len = fns.length
   if (spread) {
     return function(accs, row) {
-      let i = len
-      while (i--) {
+      let i = -1
+      while (++i < len) {
         accs[i] = fns[i](accs[i], row[i])
       }
       return accs
     }
   } else {
     return function(accs, row) {
-      let i = len
-      while (i--) {
+      let i = -1
+      while (++i < len) {
         accs[i] = fns[i](accs[i], row)
       }
       return accs
