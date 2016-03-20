@@ -2,8 +2,12 @@ import invariant from 'invariant'
 import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
 import unzip from 'lodash/unzip'
-
 import {map, filter, drop, take, seq, compose} from 'transducers.js'
+
+import {
+  identity, combineReducers, REDUCERS, spread, createGrouper, isfunc,
+  arrayToIndex
+} from './helpers'
 
 const action = Symbol('action')
 const index = Symbol('index')
@@ -14,9 +18,6 @@ const noActions = []
 
 const Arrays = new WeakMap()
 const ArraysMetadata = new WeakMap()
-
-const isfunc = fn => fn && typeof fn == 'function'
-const arrayToIndex = arr => zipObject(arr, [...arr.keys()])
 
 export default class Dodo {
   constructor(array, index, actions=noActions) {
@@ -173,78 +174,17 @@ export default class Dodo {
     invariant(name, `Dodo#groupBy(name, fn) - name is required`)
     invariant(this[meta].columns.has(name),
       `Dodo#group(name) — name ${name} not in index`)
+
     const map = new Map()
     const grouper = createGrouper(map, fn, this[index][name])
-    for (const row of this) grouper(row)
+    const array = this.toArray()
+    const len = array.length
+    let i = -1
+    while (++i < len) {
+      grouper(array[i])
+    }
     map.forEach(arrayToDodo(this[index]))
     return Flock(map)
-  }
-}
-
-Dodo.prototype.drop = Dodo.prototype.skip
-
-const spread = (fns) => {
-  const len = fns.length
-  return value => {
-    let i = len
-    while (i--) {
-      value[i] = fns[i](value[i])
-    }
-    return value
-  }
-}
-
-const combineReducers = (fns, spread) => {
-  const len = fns.length
-  if (spread) {
-    return (accs, row) => {
-      let i = len
-      while (i--) {
-        accs[i] = fns[i](accs[i], row[i])
-      }
-      return accs
-    }
-  } else {
-    return (accs, row) => {
-      let i = len
-      while (i--) {
-        accs[i] = fns[i](accs[i], row)
-      }
-      return accs
-    }
-  }
-}
-
-const identity = a => a
-
-const REDUCERS = {
-  max: () => [(max, el) => max > el ? max : el, -Infinity, identity],
-  min: () => [(min, el) => min < el ? min : el, Infinity, identity],
-  sum: () => [(sum, el) => sum + el, 0, identity],
-  mean: () => [
-    ([count, sum], el) => [++count, sum + el],
-    [0, 0],
-    ([count, sum]) => sum / count
-  ],
-  count: () => [count => ++count, 0, identity],
-  countUniq: () => [(set, el) => set.add(el), new Set(), set => set.size],
-}
-
-function createGrouper(map, fn, col) {
-  if (fn) {
-    return function(row) {
-      const key = fn(row[col])
-      map.has(key)
-        ? map.get(key).push(row)
-        : map.set(key, [row])
-    }
-  } else {
-    return function(row) {
-      const key = row[col]
-      map.has(key)
-        ? map.get(key).push(row)
-        : map.set(key, [row])
-    }
   }
 }
 
@@ -253,6 +193,8 @@ function arrayToDodo(Index) {
     map.set(key, new Dodo(array, Index))
   }
 }
+
+Dodo.prototype.drop = Dodo.prototype.skip
 
 const dodoMethods = Object.getOwnPropertyNames(Dodo.prototype)
 dodoMethods.filter(method => method != 'constructor')
