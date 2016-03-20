@@ -23,7 +23,8 @@ test('throws without an array or index', t => {
   t.throws(() => new Dodo())
   t.throws(() => new Dodo(table))
   t.throws(() => new Dodo({notAn: 'array'}))
-  t.throws(() => new Dodo(table, {abc: 0}))
+  t.throws(() => new Dodo(table, {abc: 0})) // not enough keys
+  t.throws(() => new Dodo(table, Object.keys(index).slice(2)))
 })
 
 test('slice shorthand: take', t => {
@@ -122,10 +123,16 @@ test('map shorthand: col', t => {
 test('map shorthand: cols', t => {
   const dodo = new Dodo(table, index)
   const cols = ['Date', 'Age', 'Height']
+  const expected = array.map(row => cols.map(col => row[index[col]]))
   t.same(
     dodo.cols(cols).toArray(),
-    array.map(row => cols.map(col => row[index[col]]))
+    expected
   )
+  t.same(
+    dodo.cols(...cols).toArray(),
+    expected
+  )
+  t.throws(() => dodo.cols())
   t.throws(() => dodo.cols([...cols, 'Column that does not exist']))
 })
 

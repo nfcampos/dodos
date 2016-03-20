@@ -2,6 +2,7 @@ import invariant from 'invariant'
 import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
 import unzip from 'lodash/unzip'
+import flatten from 'lodash/flatten'
 import {map, filter, drop, take, seq} from 'transducers.js'
 
 import {
@@ -17,7 +18,7 @@ const dispatchReduce = Symbol('dispatchReduce')
 const noActions = []
 
 const Arrays = new WeakMap()
-const ArraysMetadata = new WeakMap()
+const Metadata = new WeakMap()
 
 export default class Dodo {
   constructor(array, index, actions=noActions) {
@@ -29,16 +30,15 @@ export default class Dodo {
       `new Dodo(arr, index) - index is missing or malformed`)
 
     Arrays.set(this, array)
-    if (!ArraysMetadata.has(array))
-      ArraysMetadata.set(array, {
+    if (!Metadata.has(array))
+      Metadata.set(array, {
         index: index,
-        length: array.length,
         columns: new Set(Object.keys(index)),
       })
     this.actions = actions
   }
 
-  get [meta]() { return ArraysMetadata.get(Arrays.get(this)) }
+  get [meta]() { return Metadata.get(Arrays.get(this)) }
 
   get [index]() {
     const lastMapWithIndex = this.actions.filter(act => !!act.I).slice(-1)
@@ -51,7 +51,7 @@ export default class Dodo {
 
   get [names]() {
     const I = this[index]
-    return Object.keys(I).sort((a, b) => I[a] > I[b] ? 1 : -1)
+    return Object.keys(I).sort((a, b) => I[a] - I[b])
   }
 
   [Symbol.iterator]() { return this.toArray().values() }
@@ -72,8 +72,12 @@ export default class Dodo {
 
   filter(fn) {
     invariant(isfunc(fn), `Dodo#filter(fn) — fn not a function`)
-    const I = this[index]
-    return this[action](filter(row => fn(row, I)))
+    if (this[names].length == 1) {
+      return this[action](filter(fn))
+    } else {
+      const I = this[index]
+      return this[action](filter(row => fn(row, I)))
+    }
   }
 
   filterBy(name, fn) {
@@ -85,8 +89,12 @@ export default class Dodo {
 
   map(fn) {
     invariant(isfunc(fn), `Dodo#map(fn) — fn not a function`)
-    const I = this[index]
-    return this[action](map(row => fn(row, I)))
+    if (this[names].length == 1) {
+      return this[action](map(fn))
+    } else {
+      const I = this[index]
+      return this[action](map(row => fn(row, I)))
+    }
   }
 
   col(name) {
@@ -99,12 +107,12 @@ export default class Dodo {
     return this[action](fn)
   }
 
-  cols(names) {
-    invariant(Array.isArray(names), `Dodo#cols(names) - names is required`)
-    names.forEach(name => invariant(
-      this[meta].columns.has(name),
-      `Dodo#cols(names) — name ${name} not in index`
-    ))
+  cols(...names) {
+    names = names.length ? flatten(names) : undefined
+    invariant(names, `Dodo#cols(names) - names is required`)
+    names.forEach(n => invariant(
+      this[meta].columns.has(n), `Dodo#cols(names) - name ${n} not in index`))
+
     const indices = names.map(name => this[index][name])
     const fn = map(row => indices.map(i => row[i]))
     fn.I = arrayToIndex(names)
