@@ -10,3 +10,17 @@ export const data = csvParse(
 export const index = zipObject(data.columns, [...data.keys()])
 
 delete data.columns
+
+//-- index
+// i
+// SeriousDlqin2yrs
+// RevolvingUtilizationOfUnsecuredLines
+// age
+// NumberOfTime30To59DaysPastDueNotWorse
+// DebtRatio
+// MonthlyIncome
+// NumberOfOpenCreditLinesAndLoans
+// NumberOfTimes90DaysLate
+// NumberRealEstateLoansOrLines
+// NumberOfTime60To89DaysPastDueNotWorse
+// NumberOfDependents
