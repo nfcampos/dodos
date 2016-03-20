@@ -1,8 +1,19 @@
 import zipObject from 'lodash/zipObject'
 
-export const spread = (fns) => {
+export function compose(funcs) {
+  var len = funcs.length
+  return function(r) {
+    var value = r;
+    for(var i=len-1; i>=0; i--) {
+      value = funcs[i](value);
+    }
+    return value;
+  }
+}
+
+export function spread(fns) {
   const len = fns.length
-  return value => {
+  return function(value) {
     let i = len
     while (i--) {
       value[i] = fns[i](value[i])
@@ -11,10 +22,10 @@ export const spread = (fns) => {
   }
 }
 
-export const combineReducers = (fns, spread) => {
+export function combineReducers(fns, spread) {
   const len = fns.length
   if (spread) {
-    return (accs, row) => {
+    return function(accs, row) {
       let i = len
       while (i--) {
         accs[i] = fns[i](accs[i], row[i])
@@ -22,7 +33,7 @@ export const combineReducers = (fns, spread) => {
       return accs
     }
   } else {
-    return (accs, row) => {
+    return function(accs, row) {
       let i = len
       while (i--) {
         accs[i] = fns[i](accs[i], row)
@@ -35,16 +46,16 @@ export const combineReducers = (fns, spread) => {
 export const identity = a => a
 
 export const REDUCERS = {
-  max: () => [(max, el) => max > el ? max : el, -Infinity, identity],
-  min: () => [(min, el) => min < el ? min : el, Infinity, identity],
-  sum: () => [(sum, el) => sum + el, 0, identity],
-  mean: () => [
+  max: [(max, el) => max > el ? max : el, () => -Infinity, identity],
+  min: [(min, el) => min < el ? min : el, () => Infinity, identity],
+  sum: [(sum, el) => sum + el, () => 0, identity],
+  mean: [
     ([count, sum], el) => [++count, sum + el],
-    [0, 0],
+    () => [0, 0],
     ([count, sum]) => sum / count
   ],
-  count: () => [count => ++count, 0, identity],
-  countUniq: () => [(set, el) => set.add(el), new Set(), set => set.size],
+  count: [count => ++count, () => 0, identity],
+  countUniq: [(set, el) => set.add(el), () => new Set(), set => set.size],
 }
 
 export function createGrouper(map, fn, col) {
