@@ -3,9 +3,7 @@ import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
 import unzip from 'lodash/unzip'
 
-const MAP_ACTION = 'MAP_ACTION'
-const FILTER_ACTION = 'FILTER_ACTION'
-const SLICE_ACTION = 'SLICE_ACTION'
+import {map, filter, drop, take, seq, compose} from 'transducers.js'
 
 const action = Symbol('action')
 const index = Symbol('index')
@@ -17,14 +15,24 @@ const noActions = []
 const Arrays = new WeakMap()
 const ArraysMetadata = new WeakMap()
 
+const isfunc = fn => fn && typeof fn == 'function'
+const arrayToIndex = arr => zipObject(arr, [...arr.keys()])
+
 export default class Dodo {
-  constructor(array, actions=noActions) {
-    invariant(array, `new Dodo(array) - array is required`)
+  constructor(array, index, actions=noActions) {
+    if (Array.isArray(index))
+      index = arrayToIndex(index)
+
+    invariant(Array.isArray(array), `new Dodo(arr, index) - arr is required`)
+    invariant(index && Object.keys(index).length == array[0].length,
+      `new Dodo(arr, index) - index is missing or malformed`)
+
     Arrays.set(this, array)
     if (!ArraysMetadata.has(array))
       ArraysMetadata.set(array, {
+        index: index,
         length: array.length,
-        columns: new Set(Object.keys(array.index)),
+        columns: new Set(Object.keys(index)),
       })
     this.actions = actions
   }
@@ -32,14 +40,12 @@ export default class Dodo {
   get [meta]() { return ArraysMetadata.get(Arrays.get(this)) }
 
   get [index]() {
-    const lastMapWithIndex = this.actions
-      .filter(act => act.type == MAP_ACTION && act.I)
-      .slice(-1)
+    const lastMapWithIndex = this.actions.filter(act => !!act.I).slice(-1)
 
     if (lastMapWithIndex.length)
       return lastMapWithIndex[0].I
     else
-      return Arrays.get(this).index
+      return this[meta].index
   }
 
   get [names]() {
@@ -47,133 +53,75 @@ export default class Dodo {
     return Object.keys(I).sort((a, b) => I[a] > I[b] ? 1 : -1)
   }
 
-  [action](action) {
-    return new Dodo(Arrays.get(this), [...this.actions, action])
+  [Symbol.iterator]() { return this.toArray().values() }
+
+  toArray() {
+    if (this.actions.length)
+      return seq(Arrays.get(this), compose(...this.actions))
+    else
+      return Arrays.get(this)
   }
-
-  *[Symbol.iterator]() {
-    const array = Arrays.get(this)
-    const Index = array.index
-    const nrOfActions = this.actions.length
-
-    if (!nrOfActions) {
-
-      yield* array
-
-    } else {
-
-      const lastActionIndex = this.actions.length - 1
-      let lastRowIndex = ArraysMetadata.get(array).length - 1
-      let rowIndex
-
-      const firstNonMap = this.actions
-        .filter(act => act.type != MAP_ACTION)
-        .slice(0, 1)
-
-      if (firstNonMap.type == SLICE_ACTION)
-        rowIndex = firstNonMap.start - 1
-      else
-        rowIndex = -1
-
-      while (rowIndex++ < lastRowIndex) {
-        let row = array[rowIndex]
-        let actionIndex = -1
-        let I = Index
-        while (actionIndex++ < lastActionIndex) {
-          const action = this.actions[actionIndex]
-          if (action.type == SLICE_ACTION) {
-            if (++action.counter < action.first)
-              break
-            if (action.counter == action.last)
-              lastRowIndex = rowIndex
-          } if (action.type == FILTER_ACTION) {
-            if (!action(row, I))
-              break
-          } if (action.type == MAP_ACTION) {
-            row = action(row, I)
-            I = action.I || I
-          }
-          if (actionIndex == lastActionIndex)
-            yield row
-        }
-      }
-
-    }
-  }
-
-  toArray() { return [...this] }
 
   uniq() { return [...new Set(this)] }
 
-  filter(fn) {
-    invariant(fn && typeof fn == 'function',
-      `Dodo#filter(fn) — fn not a function`)
-    fn.type = FILTER_ACTION
-    return this[action](fn)
+  [action](action) {
+    return new Dodo(
+      Arrays.get(this), this[meta].index, [...this.actions, action])
   }
 
-  filterBy(col, fn) {
-    invariant(col, `Dodo#filterBy(col, fn) - col is required`)
-    invariant(fn, `Dodo#filterBy(col, fn) - fn is required`)
-    return this.filter( (row, I) => fn(row[I[col]]) )
+  filter(fn) {
+    invariant(isfunc(fn), `Dodo#filter(fn) — fn not a function`)
+    const I = this[index]
+    return this[action](filter(row => fn(row, I)))
+  }
+
+  filterBy(name, fn) {
+    invariant(name, `Dodo#filterBy(name, fn) - col is required`)
+    invariant(isfunc(fn), `Dodo#filterBy(name, fn) - fn not a function`)
+    const col = this[index][name]
+    return this[action]( filter(row => fn(row[col])) )
   }
 
   map(fn) {
-    invariant(fn && typeof fn == 'function', `Dodo#map(fn) — fn not a function`)
-    fn.type = MAP_ACTION
-    return this[action](fn)
+    invariant(isfunc(fn), `Dodo#map(fn) — fn not a function`)
+    const I = this[index]
+    return this[action](map(row => fn(row, I)))
   }
 
   col(name) {
-    invariant(name, `Dodo#col(name) - name is required`)
+    invariant(name, `Dodo#filterBy(name, fn) - col is required`)
     invariant(this[meta].columns.has(name),
       `Dodo#col(name) — name ${name} not in index`)
     const col = this[index][name]
-    return this.map(row => row[col])
+    return this[action](map(row => row[col]))
   }
 
   cols(names) {
-    invariant(names, `Dodo#cols(names) - names is required`)
+    invariant(Array.isArray(names), `Dodo#cols(names) - names is required`)
     names.forEach(name => invariant(
       this[meta].columns.has(name),
       `Dodo#cols(names) — name ${name} not in index`
     ))
-    const fn = (row, I) => names.map(name => row[I[name]])
-    fn.I = zipObject(names, [...names.keys()])
-    return this.map(fn)
-  }
-
-  slice(start=0, end) {
-    const len = this[meta].length
-    if (typeof end != 'number')
-      end = len
-    if (end == len && start == 0)
-      return this
-    invariant(start >= 0, `Dodo#slice(start, end) — start smaller than 0`)
-    invariant(end >= 0, `Dodo#slice(start, end) — end smaller than 0`)
-    invariant(start < end, `Dodo#slice(start, end) — end larger than start`)
-    return this[action]({
-      type: SLICE_ACTION,
-      counter: -1,
-      first: start,
-      last: end - 1,
-    })
+    const indices = names.map(name => this[index][name])
+    const fn = map(row => indices.map(i => row[i]))
+    fn.I = arrayToIndex(names)
+    return this[action](fn)
   }
 
   skip(amount) {
     invariant(amount, `Dodo#skip(amount) - amount is required`)
     invariant(amount > 0, `Dodo#skip(amount) — amount smaller than 0`)
-    return this.slice(amount)
+    return this[action](drop(amount))
   }
 
   take(amount) {
     invariant(amount, `Dodo#take(amount) - amount is required`)
     invariant(amount > 0, `Dodo#take(amount) — amount smaller than 0`)
-    return this.slice(0, amount)
+    return this[action](take(amount))
   }
 
   [dispatchReduce](args) {
-    if (this[index] == Arrays.get(this).index)
+    if (this[index] == this[meta].index)
       return this.reduce(...args())
     else
       return this._reduceEach(args)
@@ -181,10 +129,15 @@ export default class Dodo {
 
   reduce(fn, init, final=identity) {
     invariant(init != null, `Dodo#reduce(fn, init, final) - init is required`)
-    invariant(fn && typeof fn == 'function',
-      `Dodo#reduce(fn, init, final) — fn not a function`)
-    for (const row of this)
-      init = fn(init, row)
+    invariant(isfunc(fn), `Dodo#reduce(fn, init, final) — fn not a function`)
+    invariant(isfunc(final),
+      `Dodo#reduce(fn, init, final) — final not a function`)
+    const array = this.toArray()
+    const len = array.length
+    let i = -1
+    while (++i < len) {
+      init = fn(init, array[i])
+    }
     return final === identity ? init : final(init)
   }
 
@@ -227,6 +180,8 @@ export default class Dodo {
     return Flock(map)
   }
 }
+
+Dodo.prototype.drop = Dodo.prototype.skip
 
 const spread = (fns) => {
   const len = fns.length
@@ -295,8 +250,7 @@ function createGrouper(map, fn, col) {
 
 function arrayToDodo(Index) {
   return function(array, key, map) {
-    array.index = Index
-    map.set(key, new Dodo(array))
+    map.set(key, new Dodo(array, Index))
   }
 }
 
