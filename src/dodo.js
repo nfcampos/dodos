@@ -114,7 +114,10 @@ export default class Dodo {
       this[meta].columns.has(n), `Dodo#cols(names) - name ${n} not in index`))
 
     const indices = names.map(name => this[index][name])
-    const fn = map(row => indices.map(i => row[i]))
+    const inner = new Function('row', `
+      return [${indices.map(i => `row[${i}]`).join(',')}]
+    `)
+    const fn = map(inner)
     fn.I = arrayToIndex(names)
     return this[action](fn)
   }
