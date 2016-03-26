@@ -3,7 +3,7 @@ import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
 import unzip from 'lodash/unzip'
 import flatten from 'lodash/flatten'
-import {map, filter, drop, take, seq} from 'transducers.js'
+import {map, filter, drop, take, seq, transduce} from 'transducers.js'
 
 import {
   identity, combineReducers, REDUCERS, spread, createGrouper, isfunc,
@@ -146,13 +146,15 @@ export default class Dodo {
     invariant(isfunc(fn), `Dodo#reduce(fn, init, final) — fn not a function`)
     invariant(isfunc(final),
       `Dodo#reduce(fn, init, final) — final not a function`)
-    const array = this.toArray()
-    const len = array.length
-    let i = -1
-    while (++i < len) {
-      init = fn(init, array[i])
-    }
-    return final === identity ? init : final(init)
+    return transduce(
+      Arrays.get(this),
+      compose(this.actions),
+      {
+        ['@@transducer/step']: fn,
+        ['@@transducer/result']: final
+      },
+      init
+    )
   }
 
   reduceEach(fn, initFactory, final=identity) {

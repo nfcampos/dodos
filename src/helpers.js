@@ -51,7 +51,11 @@ export const REDUCERS = {
   min: [(min, el) => min < el ? min : el, () => Infinity, identity],
   sum: [(sum, el) => sum + el, () => 0, identity],
   mean: [
-    ([count, sum], el) => [++count, sum + el],
+    (stats, el) => {
+      ++stats[0]
+      stats[1] += el
+      return stats
+    },
     () => [0, 0],
     ([count, sum]) => sum / count
   ],
