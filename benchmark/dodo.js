@@ -63,7 +63,7 @@ suite
       .map(row => row[I['NumberOfDependents']])
       .slice(100)
   })
-  .add('Dodo  #filterBy #filterBy #col #skip', () => {
+  .add('Dodo #filterBy #filterBy #col #skip', () => {
     dodo
       .filterBy('NumberOfDependents', n => n == 2)
       .filterBy('age', a => a > 40)
@@ -88,10 +88,30 @@ suite
       .col('age')
       .toArray()
   })
+  .add('Dodo #cols(1)', () => {
+    dodo
+      .cols(['age'])
+      .toArray()
+  })
   .add('Dodo #cols(3)', () => {
     dodo
       .cols(['age', 'MonthlyIncome', 'DebtRatio'])
       .toArray()
+  })
+  .add('Dodo #col() #sum()', () => {
+    dodo
+      .col('age')
+      .sum()
+  })
+  .add('Dodo #cols(1) #sum()', () => {
+    dodo
+      .cols(['age'])
+      .sum()
+  })
+  .add('Dodo #cols(3) #sum()', () => {
+    dodo
+      .cols(['age', 'MonthlyIncome', 'DebtRatio'])
+      .sum()
   })
   .add('Dodo #filterBy #col #length', () => {
     dodo

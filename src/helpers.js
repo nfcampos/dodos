@@ -1,5 +1,7 @@
 import zipObject from 'lodash/zipObject'
 
+export const identity = a => a
+
 export function compose(funcs) {
   var len = funcs.length
   return function(r) {
@@ -23,6 +25,26 @@ export function spread(fns) {
   }
 }
 
+export const arrayReducer = {
+  ['@@transducer/result']: identity,
+
+  ['@@transducer/step'](arr, v) {
+    arr.push(v)
+    return arr
+  },
+}
+
+export function transduceNoBreak(coll, xform, reducer, init) {
+  xform = xform(reducer)
+  var result = init;
+  var index = -1;
+  var len = coll.length;
+  while(++index < len) {
+    result = xform['@@transducer/step'](result, coll[index]);
+  }
+  return xform['@@transducer/result'](result);
+}
+
 export function combineReducers(fns, spread) {
   const len = fns.length
   if (spread) {
@@ -43,8 +65,6 @@ export function combineReducers(fns, spread) {
     }
   }
 }
-
-export const identity = a => a
 
 export const REDUCERS = {
   max: [(max, el) => max > el ? max : el, () => -Infinity, identity],

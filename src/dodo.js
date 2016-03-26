@@ -3,11 +3,11 @@ import zip from 'lodash/zip'
 import zipObject from 'lodash/zipObject'
 import unzip from 'lodash/unzip'
 import flatten from 'lodash/flatten'
-import {map, filter, drop, take, seq, transduce} from 'transducers.js'
+import {map, filter, drop, take, transduce} from 'transducers.js'
 
 import {
   identity, combineReducers, REDUCERS, spread, createGrouper, isfunc,
-  arrayToIndex, compose
+  arrayToIndex, compose, transduceNoBreak, arrayReducer
 } from './helpers'
 
 const action = Symbol('action')
@@ -19,6 +19,9 @@ const noActions = []
 
 const Arrays = new WeakMap()
 const Metadata = new WeakMap()
+
+const needSlowCase = a =>
+  a.toString().includes('new Take') || a.toString().includes('new Drop')
 
 export default class Dodo {
   constructor(array, index, actions=noActions) {
@@ -58,7 +61,12 @@ export default class Dodo {
 
   toArray() {
     if (this.actions.length)
-      return seq(Arrays.get(this), compose(this.actions))
+      return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
+        Arrays.get(this),
+        compose(this.actions),
+        arrayReducer,
+        []
+      )
     else
       return Arrays.get(this)
   }
@@ -148,7 +156,7 @@ export default class Dodo {
     invariant(isfunc(fn), `Dodo#reduce(fn, init, final) — fn not a function`)
     invariant(isfunc(final),
       `Dodo#reduce(fn, init, final) — final not a function`)
-    return transduce(
+    return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
       Arrays.get(this),
       compose(this.actions),
       {

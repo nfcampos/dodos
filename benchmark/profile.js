@@ -16,7 +16,7 @@ function profileDodo() {
   console.profile('dodo')
   dodo
     .cols(['age', 'MonthlyIncome', 'DebtRatio'])
-    .stats('sum', 'count', 'mean');
+    .stats('sum');
   console.profileEnd('dodo')
 }
 
