@@ -93,6 +93,12 @@ suite
       .cols(['age', 'MonthlyIncome', 'DebtRatio'])
       .toArray()
   })
+  .add('Dodo #filterBy #col #length', () => {
+    dodo
+      .filterBy('NumberOfDependents', n => n == 2)
+      .col('NumberOfDependents')
+      .length
+  })
   .add('Dodo #col() #mean()', () => {
     dodo
       .col('age')

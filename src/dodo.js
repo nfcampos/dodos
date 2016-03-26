@@ -63,6 +63,8 @@ export default class Dodo {
       return Arrays.get(this)
   }
 
+  get length() { return this.toArray().length }
+
   uniq() { return [...new Set(this)] }
 
   [action](action) {

@@ -261,6 +261,15 @@ test('uniq', t => {
   )
 })
 
+test('length', t => {
+  const dodo = new Dodo(table, index)
+  t.ok(dodo.col('Age').toArray().length == dodo.length)
+  t.ok(dodo.cols('Age', 'Date').toArray().length
+    == dodo.cols('Age', 'Date').length)
+  t.ok(dodo.filterBy('Height', h => h >= 7).toArray().length
+    == dodo.filterBy('Height', h => h >= 7).length)
+})
+
 test('reduce of single column', t => {
   const dodo = new Dodo(table, index)
   t.same(
