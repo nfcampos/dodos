@@ -120,8 +120,8 @@ export default class Dodo {
   cols(...names) {
     names = names.length ? flatten(names) : undefined
     invariant(names, `Dodo#cols(names) - names is required`)
-    names.forEach(n => invariant(
-      this[meta].columns.has(n), `Dodo#cols(names) - name ${n} not in index`))
+    names.forEach(n => invariant(this[meta].columns.has(n),
+      `Dodo#cols(names) - name ${n} not in index`))
 
     const indices = names.map(name => this[index][name])
     const inner = new Function('row', `
@@ -184,6 +184,10 @@ export default class Dodo {
   }
 
   stats(...methods) {
+    invariant(methods && methods.length,
+      `Dodo#stats(...methods) - at least one method is required`)
+    methods.forEach(m => invariant(typeof m == 'string' && m in REDUCERS,
+      `Dodo#stats(...methods) - method ${m} is not implemented`))
     const [fns, inits, finals] = zip(...methods.map(m => REDUCERS[m]))
     return this[dispatchReduce](
       combineReducers(fns),
@@ -259,8 +263,9 @@ function Flock(map, method, args) {
 
 function mapEntries(fn) {
   const entries = [...this.entries()]
-  let i = this.size
-  while (i--) {
+  const len = this.size
+  let i = -1
+  while (++i < len) {
     let entry = entries[i]
     entries[i] = fn(entry[1], entry[0], this)
   }

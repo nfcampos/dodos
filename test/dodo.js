@@ -276,6 +276,10 @@ test('reduce of single column', t => {
     dodo.col('Age').reduce((acc, a) => acc * a, 1),
     array.map(row => row[index.Age]).reduce((acc, a) => acc * a, 1)
   )
+  t.same(
+    dodo.col('Age').skip(3).reduce((acc, a) => acc * a, 1),
+    array.map(row => row[index.Age]).slice(3).reduce((acc, a) => acc * a, 1)
+  )
 })
 
 test('reduce over multiple columns', t => {
@@ -348,6 +352,15 @@ test('reduce shorthands', t => {
       all.map(col => dodo.col(col).stats(...shorthands.map(s => s[0])))
     )
   )
+})
+
+test('stats sanity checking', t => {
+  const dodo = new Dodo(table, index)
+  t.throws(() => dodo.stats())
+  t.throws(() => dodo.stats('median'))
+  t.throws(() => dodo.stats(''))
+  t.throws(() => dodo.stats(2))
+  t.throws(() => dodo.stats('sum', 'median'))
 })
 
 test('groupBy without key function', t => {
