@@ -220,6 +220,11 @@ export default class Dodo {
     map.forEach(arrayToDodo(this[index]))
     return Flock(map)
   }
+
+  flock(fn) {
+    invariant(isfunc(fn), `Dodo#flock(fn) — fn not a function`)
+    return Flock(fn(this))
+  }
 }
 
 function arrayToDodo(Index) {

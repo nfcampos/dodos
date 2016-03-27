@@ -375,14 +375,22 @@ test('groupBy with key function', t => {
   })
 })
 
-test('groupBy(): Dodo prototype methods present', t => {
-  const grouped = new Dodo(table, index).groupBy('Age')
-  const methods = new Set(Object.getOwnPropertyNames(grouped))
+function testFlockMethods(shouldHaveMethods, t, flock) {
+  const methods = new Set(Object.getOwnPropertyNames(flock))
   for (const method of Object.getOwnPropertyNames(Dodo.prototype)) {
     if (method == 'constructor') continue
-    t.true(methods.has(method), method + ' not present')
-    t.true(typeof grouped[method] == 'function', method + ' not function')
+    if (shouldHaveMethods) {
+      t.true(methods.has(method), method + ' not present')
+      t.true(typeof flock[method] == 'function', method + ' not function')
+    } else {
+      t.false(methods.has(method), method + ' present')
+    }
   }
+}
+
+test('groupBy(): Dodo prototype methods present', t => {
+  const grouped = new Dodo(table, index).groupBy('Age')
+  testFlockMethods(true, t, grouped)
 })
 
 test('groupBy().map()', t => {
@@ -410,11 +418,7 @@ test('groupBy().map()', t => {
 test('groupBy(): Dodo prototype methods absent after toArray', t => {
   const grouped = new Dodo(table, index).groupBy('Age')
   const groupedToArray = grouped.toArray()
-  const methods = new Set(Object.getOwnPropertyNames(groupedToArray))
-  for (const method of Object.getOwnPropertyNames(Dodo.prototype)) {
-    if (method == 'constructor') continue
-    t.false(methods.has(method), method + ' present')
-  }
+  testFlockMethods(false, t, groupedToArray)
 })
 
 test('groupBy().mapEntries()', t => {
@@ -426,4 +430,17 @@ test('groupBy().mapEntries()', t => {
     grouped.mapEntries(mapper),
     expected
   )
+})
+
+test('flock()', t => {
+  const dodo = new Dodo(table, index)
+  const flock = dodo.flock(dodo => [
+    ['old', dodo.filterBy('Age', a => a > 10)],
+    ['young', dodo.filterBy('Age', a => a <= 10)]
+  ])
+  t.ok(flock.has('old'))
+  t.ok(flock.has('young'))
+  t.ok(flock.get('old') instanceof Dodo)
+  t.ok(flock.get('young') instanceof Dodo)
+  testFlockMethods(true, t, flock)
 })
