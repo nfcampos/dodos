@@ -2,15 +2,23 @@
   "name": "dodos",
   "version": "2.4.0",
   "description": "Pandas-inspired iterator-based data wrangling library for js",
-  "main": "dist/dodos.js",
+  "main": "lib/dodo.js",
   "scripts": {
-    "build": "webpack",
+    "build": "npm run build:lib && npm run build:umd",
+    "build:lib": "babel src --out-dir lib",
+    "build:umd": "webpack",
+    "clean": "rimraf lib dist coverage .nyc_output",
     "test": "ava",
     "test:watch": "ava --watch",
     "test:cov": "nyc ava",
     "prepush": "npm test",
-    "prepublish": "npm test && npm run build"
+    "prepublish": "npm test && npm run clean && npm run build"
   },
+  "files": [
+    "dist",
+    "lib",
+    "src"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nfcampos/dodos.git"
@@ -36,6 +44,7 @@
     "husky": "~0.11.4",
     "npm-check": "~4.1.4",
     "nyc": "~6.1.1",
+    "rimraf": "~2.5.2",
     "table": "~3.7.8",
     "webpack": "~1.12.14"
   },
