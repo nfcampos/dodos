@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "invariant": "~2.2.1",
-    "lodash": "~4.6.1",
+    "lodash": "~4.8.0",
     "transducers.js": "~0.3.2"
   },
   "babel": {
