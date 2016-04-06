@@ -27,20 +27,27 @@ test('throws without an array or index', t => {
   t.throws(() => new Dodo(table, Object.keys(index).slice(2)))
 })
 
-test('slice shorthand: take', t => {
+test('take', t => {
   const dodo = new Dodo(table, index)
   t.same(
     dodo.take(10).toArray(),
     array.slice(0, 10)
   )
+  t.same(dodo.take(0).toArray(), [])
+  t.throws(() => dodo.take('boo'))
+  t.throws(() => dodo.take(-1))
 })
 
-test('slice shorthand: skip', t => {
+test('skip', t => {
   const dodo = new Dodo(table, index)
   t.same(
     dodo.skip(3).toArray(),
     array.slice(3)
   )
+  t.same(dodo.skip(0).toArray(), array)
+  t.ok(dodo.skip(0) !== dodo)
+  t.throws(() => dodo.skip('boo'))
+  t.throws(() => dodo.skip(-1))
 })
 
 test('filter', t => {

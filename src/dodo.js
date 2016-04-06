@@ -76,8 +76,13 @@ export default class Dodo {
   uniq() { return [...new Set(this)] }
 
   [action](action) {
-    return new Dodo(
-      Arrays.get(this), this[meta].index, [...this.actions, action])
+    if (action) {
+      return new Dodo(
+        Arrays.get(this), this[meta].index, [...this.actions, action])
+    } else {
+      return new Dodo(
+        Arrays.get(this), this[meta].index, [...this.actions])
+    }
   }
 
   filter(fn) {
@@ -133,14 +138,15 @@ export default class Dodo {
   }
 
   skip(amount) {
-    invariant(amount, `Dodo#skip(amount) - amount is required`)
+    invariant(Number.isFinite(amount), `Dodo#skip(amount) - amount must be a number`)
+    if (amount === 0) return this[action]()
     invariant(amount > 0, `Dodo#skip(amount) — amount smaller than 0`)
     return this[action](drop(amount))
   }
 
   take(amount) {
-    invariant(amount, `Dodo#take(amount) - amount is required`)
-    invariant(amount > 0, `Dodo#take(amount) — amount smaller than 0`)
+    invariant(Number.isFinite(amount), `Dodo#take(amount) - amount must be a number`)
+    invariant(amount >= 0, `Dodo#take(amount) — amount smaller than 0`)
     return this[action](take(amount))
   }
 
