@@ -29,8 +29,9 @@ export default class Dodo {
       index = arrayToIndex(index)
 
     invariant(Array.isArray(array), `new Dodo(arr, index) - arr is required`)
-    invariant(index && Object.keys(index).length == array[0].length,
-      `new Dodo(arr, index) - index is missing or malformed`)
+    invariant(index , `new Dodo(arr, index) - index is missing`)
+    invariant(Object.keys(index).length == array[0].length,
+      `new Dodo(arr, index) - index length (${Object.keys(index).length}) != array[0].length (${array[0].length})`)
 
     Arrays.set(this, array)
     if (!Metadata.has(array))
