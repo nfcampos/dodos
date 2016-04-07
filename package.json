@@ -15,7 +15,7 @@
     "coverage": "npm run test:cov && npm run test:covreport",
     "prepush": "npm test",
     "prepublish": "npm test && npm run clean && npm run build",
-    "postpublish": "git push origin master"
+    "postpublish": "git push origin master --no-verify"
   },
   "files": [
     "dist",
