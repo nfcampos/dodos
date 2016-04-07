@@ -7,13 +7,13 @@ const array = table
 
 test('no actions', t => {
   const dodo = new Dodo(table, index)
-  t.ok(dodo.actions.length === 0)
-  t.same([...dodo], array)
+  t.truthy(dodo.actions.length === 0)
+  t.deepEqual([...dodo], array)
 })
 
 test('accepts index as array', t => {
   const dodo = new Dodo(table, Object.keys(index))
-  t.same(
+  t.deepEqual(
     dodo.filterBy('Date', d => d == 4).toArray(),
     array.filter(row => row[index.Date] == 4)
   )
@@ -29,38 +29,38 @@ test('throws without an array or index', t => {
 
 test('take', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.take(10).toArray(),
     array.slice(0, 10)
   )
-  t.same(dodo.take(0).toArray(), [])
+  t.deepEqual(dodo.take(0).toArray(), [])
   t.throws(() => dodo.take('boo'))
   t.throws(() => dodo.take(-1))
 })
 
 test('skip', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.skip(3).toArray(),
     array.slice(3)
   )
-  t.same(dodo.skip(0).toArray(), array)
-  t.ok(dodo.skip(0) !== dodo)
+  t.deepEqual(dodo.skip(0).toArray(), array)
+  t.truthy(dodo.skip(0) !== dodo)
   t.throws(() => dodo.skip('boo'))
   t.throws(() => dodo.skip(-1))
 })
 
 test('filter', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.filter((row, I) => row[I.Date] == 4).toArray(),
     array.filter(row => row[index.Date] == 4)
   )
-  t.same(
+  t.deepEqual(
     dodo.filter((row, I) => row[I.Date] <= 4).toArray(),
     array.filter(row => row[index.Date] <= 4)
   )
-  t.same(
+  t.deepEqual(
     dodo.filter((row, I) => row[I.Age] <= 4 && row[I.Weight] == 2).toArray(),
     array.filter(row => row[index.Age] <= 4 && row[index.Weight] == 2)
   )
@@ -70,11 +70,11 @@ test('filter', t => {
 
 test('filter shorthand: filterBy', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.filterBy('Date', d => d == 4).toArray(),
     array.filter(row => row[index.Date] == 4)
   )
-  t.same(
+  t.deepEqual(
     dodo.filterBy('Age', a => a <= 4).toArray(),
     array.filter(row => row[index.Age] <= 4)
   )
@@ -86,14 +86,14 @@ test('filter + filter', t => {
     .filter(row => row[index.Date] == 4)
     .filter(r => r[index.Weight] == 2)
 
-  t.same(
+  t.deepEqual(
     dodo
       .filter((r,I) => r[I.Date] == 4)
       .filter((r,I) => r[I.Weight] == 2)
       .toArray(),
     expected
   )
-  t.same(
+  t.deepEqual(
     dodo.filter((r, I) => r[I.Date] == 4 && r[I.Weight] == 2).toArray(),
     expected
   )
@@ -101,15 +101,15 @@ test('filter + filter', t => {
 
 test('map', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.map((row, I) => row[I.Date]).toArray(),
     array.map(row => row[index.Date])
   )
-  t.same(
+  t.deepEqual(
     dodo.map((row, I) => row[I.Date] * 2).toArray(),
     array.map(row => row[index.Date] * 2)
   )
-  t.same(
+  t.deepEqual(
     dodo.map((row, I) => row[I.Date] + row[I.Age]).toArray(),
     array.map(row => row[index.Date] + row[index.Age])
   )
@@ -119,7 +119,7 @@ test('map', t => {
 
 test('map shorthand: col', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.col('Date').toArray(),
     array.map(row => row[index.Date])
   )
@@ -131,11 +131,11 @@ test('map shorthand: cols', t => {
   const dodo = new Dodo(table, index)
   const cols = ['Date', 'Age', 'Height']
   const expected = array.map(row => cols.map(col => row[index[col]]))
-  t.same(
+  t.deepEqual(
     dodo.cols(cols).toArray(),
     expected
   )
-  t.same(
+  t.deepEqual(
     dodo.cols(...cols).toArray(),
     expected
   )
@@ -149,23 +149,23 @@ test('cols() with array of single element', t => {
   const expectedMin = dodo.col('Date').min()
   const expectedFromStats = {'Date': [expectedMin]}
   const expectedFromMin = {'Date': expectedMin}
-  t.same(dodo.cols(cols).stats('min'), expectedFromStats)
-  t.same(dodo.cols(cols).min(), expectedFromMin)
+  t.deepEqual(dodo.cols(cols).stats('min'), expectedFromStats)
+  t.deepEqual(dodo.cols(cols).min(), expectedFromMin)
 })
 
 test('multiple maps', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.col('Date').map(d => d * 2).toArray(),
     array.map(row => row[index.Date]).map(d => d * 2)
   )
   const cols = ['Age', 'Date', 'Height', 'Weight']
-  t.same(
+  t.deepEqual(
     [...dodo.cols(cols).col('Date')],
     array.map(row => row[index.Date])
   )
   const colsAfter = ['Age', 'Date']
-  t.same(
+  t.deepEqual(
     [...dodo.cols(cols).cols(colsAfter)],
     array.map(row => colsAfter.map(col => row[index[col]]))
   )
@@ -177,15 +177,15 @@ test('map + filter', t => {
     .filter(row => row[index.Date] > 3)
     .map(row => row[index.Date])
 
-  t.same(
+  t.deepEqual(
     dodo.filterBy('Date', d => d > 3).col('Date').toArray(),
     expected
   )
-  t.same(
+  t.deepEqual(
     dodo.col('Date').filter(a => a > 3).toArray(),
     expected
   )
-  t.same(
+  t.deepEqual(
     [...dodo
       .col('Date')
       .filter(a => a > 3)
@@ -198,7 +198,7 @@ test('map + filter', t => {
       .filter(a => a > 8)
   )
   const cols = ['Age', 'Date']
-  t.same(
+  t.deepEqual(
     [...dodo
       .cols(cols)
       .filter((row, I) => row[I.Date] == 7)],
@@ -206,7 +206,7 @@ test('map + filter', t => {
       .map(row => cols.map(col => row[index[col]]))
       .filter(row => row[1] == 7)
   )
-  t.same(
+  t.deepEqual(
     [...dodo
       .filter((row, I) => row[I.Height] == 7)
       .cols(cols)
@@ -223,11 +223,11 @@ test('map + filter', t => {
 test('map + slice', t => {
   const dodo = new Dodo(table, index)
   const expected = array.map(row => row[index.Date] * 2).slice(2, 4)
-  t.same(
+  t.deepEqual(
     dodo.map((row, I) => row[I.Date] * 2).drop(2).take(2).toArray(),
     expected
   )
-  t.same(
+  t.deepEqual(
     dodo.drop(2).take(2).map((row, I) => row[I.Date] * 2).toArray(),
     expected
   )
@@ -235,15 +235,15 @@ test('map + slice', t => {
 
 test('filter + slice', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     [...dodo.filter((row, I) => row[I.Date] == 4).skip(1)],
     array.filter(row => row[index.Date] == 4).slice(1)
   )
-  t.same(
+  t.deepEqual(
     [...dodo.skip(1).filter((row, I) => row[I.Date] == 4)],
     array.slice(1).filter(row => row[index.Date] == 4)
   )
-  t.same(
+  t.deepEqual(
     dodo
       .filter((row, I) => row[I.Date] >= 4)
       .skip(1)
@@ -254,7 +254,7 @@ test('filter + slice', t => {
       .slice(1)
       .filter(row => row[index.Height] == 7)
   )
-  t.same(
+  t.deepEqual(
     dodo
       .skip(1)
       .filter((row, I) => row[I.Date] >= 4)
@@ -272,7 +272,7 @@ test('filter + slice', t => {
 test('uniq', t => {
   const dodo = new Dodo(table, index)
   t.true(Array.isArray(dodo.col('Date').uniq()))
-  t.same(
+  t.deepEqual(
     dodo.col('Date').uniq(),
     [...new Set(array.map(row => row[index.Date]))]
   )
@@ -280,20 +280,20 @@ test('uniq', t => {
 
 test('length', t => {
   const dodo = new Dodo(table, index)
-  t.ok(dodo.col('Age').toArray().length == dodo.length)
-  t.ok(dodo.cols('Age', 'Date').toArray().length
+  t.truthy(dodo.col('Age').toArray().length == dodo.length)
+  t.truthy(dodo.cols('Age', 'Date').toArray().length
     == dodo.cols('Age', 'Date').length)
-  t.ok(dodo.filterBy('Height', h => h >= 7).toArray().length
+  t.truthy(dodo.filterBy('Height', h => h >= 7).toArray().length
     == dodo.filterBy('Height', h => h >= 7).length)
 })
 
 test('reduce of single column', t => {
   const dodo = new Dodo(table, index)
-  t.same(
+  t.deepEqual(
     dodo.col('Age').reduce((acc, a) => acc * a, 1),
     array.map(row => row[index.Age]).reduce((acc, a) => acc * a, 1)
   )
-  t.same(
+  t.deepEqual(
     dodo.col('Age').skip(3).reduce((acc, a) => acc * a, 1),
     array.map(row => row[index.Age]).slice(3).reduce((acc, a) => acc * a, 1)
   )
@@ -302,7 +302,7 @@ test('reduce of single column', t => {
 test('reduce over multiple columns', t => {
   const dodo = new Dodo(table, index)
   const cols = Object.keys(index)
-  t.same(
+  t.deepEqual(
     dodo.reduceEach((acc, a) => acc + a, () => 0),
     _.zipObject(
       cols,
@@ -326,12 +326,12 @@ test('reduce stats', t => {
   const col = 'Date'
   const cols = ['Date', 'Age']
   for (const s of shorthands) {
-    t.same(
+    t.deepEqual(
       dodo.col(col)[s[0]](),
       s[1](array.map(row => row[index.Date])),
       `${s[0]} over 1 column`
     )
-    t.same(
+    t.deepEqual(
       dodo.cols(cols)[s[0]](),
       _.zipObject(
         cols,
@@ -340,7 +340,7 @@ test('reduce stats', t => {
       `${s[0]} over several columns`
     )
   }
-  t.same(
+  t.deepEqual(
     dodo.col(col).stats('sum', 'count', 'mean', 'countUniq'),
     [
       dodo.col(col).sum(),
@@ -349,21 +349,21 @@ test('reduce stats', t => {
       dodo.col(col).countUniq()
     ]
   )
-  t.same(
+  t.deepEqual(
     dodo.cols(cols).stats('sum', 'count'),
     {
       Date: [dodo.col('Date').sum(), dodo.col('Date').count()],
       Age: [dodo.col('Age').sum(), dodo.col('Age').count()],
     }
   )
-  t.same(
+  t.deepEqual(
     dodo.cols(cols).stats(...shorthands.map(s => s[0])),
     _.zipObject(cols,
       cols.map(col => dodo.col(col).stats(...shorthands.map(s => s[0])))
     )
   )
   const all = Object.keys(index)
-  t.same(
+  t.deepEqual(
     dodo.stats(...shorthands.map(s => s[0])),
     _.zipObject(all,
       all.map(col => dodo.col(col).stats(...shorthands.map(s => s[0])))
@@ -434,11 +434,11 @@ test('groupBy().map()', t => {
       `value of uniq ${uniq} is not a dodo`)
 
     const expected = dodo.filter((row, I) => row[I.Age] == uniq).col('Date')
-    t.same(
+    t.deepEqual(
       mappedGrouped.get(uniq).toArray(),
       expected.toArray()
     )
-    t.same(
+    t.deepEqual(
       mappedGrouped.toArray().get(uniq),
       expected.toArray()
     )
@@ -456,7 +456,7 @@ test('groupBy().mapEntries()', t => {
   const expected = []
   const mapper = (dodo, value) => dodo.toArray() + value
   grouped.forEach((dodo, value) => expected.push(mapper(dodo, value)))
-  t.same(
+  t.deepEqual(
     grouped.mapEntries(mapper),
     expected
   )
@@ -468,9 +468,9 @@ test('flock()', t => {
     ['old', dodo.filterBy('Age', a => a > 10)],
     ['young', dodo.filterBy('Age', a => a <= 10)]
   ])
-  t.ok(flock.has('old'))
-  t.ok(flock.has('young'))
-  t.ok(flock.get('old') instanceof Dodo)
-  t.ok(flock.get('young') instanceof Dodo)
+  t.truthy(flock.has('old'))
+  t.truthy(flock.has('young'))
+  t.truthy(flock.get('old') instanceof Dodo)
+  t.truthy(flock.get('young') instanceof Dodo)
   testFlockMethods(true, t, flock)
 })

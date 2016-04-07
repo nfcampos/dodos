@@ -32,7 +32,7 @@
   },
   "homepage": "https://github.com/nfcampos/dodos",
   "devDependencies": {
-    "ava": "~0.13.0",
+    "ava": "~0.14.0",
     "babel-cli": "~6.6.5",
     "babel-core": "~6.7.2",
     "babel-eslint": "~6.0.0",
@@ -42,17 +42,17 @@
     "babel-require": "~1.0.1",
     "benchmark": "~2.1.0",
     "d3-dsv": "~0.3.1",
-    "eslint": "~2.6.0",
+    "eslint": "~2.7.0",
     "husky": "~0.11.4",
     "npm-check": "~5.1.1",
-    "nyc": "~6.1.1",
+    "nyc": "~6.2.1",
     "rimraf": "~2.5.2",
     "table": "~3.7.8",
     "webpack": "~1.12.14"
   },
   "dependencies": {
     "invariant": "~2.2.1",
-    "lodash": "~4.6.1",
+    "lodash": "~4.8.2",
     "transducers.js": "~0.3.2"
   },
   "babel": {
