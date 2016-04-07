@@ -120,6 +120,7 @@ export default class Dodo {
     const col = this[index][name]
     const fn = map(row => row[col])
     fn.I = arrayToIndex([name])
+    fn.singular = true
     return this[action](fn)
   }
 
@@ -152,7 +153,7 @@ export default class Dodo {
   }
 
   [dispatchReduce](fn, initFactory, final) {
-    if (this[names].length == 1)
+    if (this.actions.find(a => a.singular))
       return this.reduce(fn, initFactory(), final)
     else
       return this.reduceEach(fn, initFactory, final)

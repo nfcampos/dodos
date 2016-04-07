@@ -143,6 +143,16 @@ test('map shorthand: cols', t => {
   t.throws(() => dodo.cols([...cols, 'Column that does not exist']))
 })
 
+test('cols() with array of single element', t => {
+  const dodo = new Dodo(table, index)
+  const cols = ['Date']
+  const expectedMin = dodo.col('Date').min()
+  const expectedFromStats = {'Date': [expectedMin]}
+  const expectedFromMin = {'Date': expectedMin}
+  t.same(dodo.cols(cols).stats('min'), expectedFromStats)
+  t.same(dodo.cols(cols).min(), expectedFromMin)
+})
+
 test('multiple maps', t => {
   const dodo = new Dodo(table, index)
   t.same(
@@ -303,7 +313,7 @@ test('reduce over multiple columns', t => {
   )
 })
 
-test('reduce shorthands', t => {
+test('reduce stats', t => {
   const dodo = new Dodo(table, index)
   const shorthands = [
     ['count', arr => arr.length],
