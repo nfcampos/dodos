@@ -11,7 +11,7 @@ import {
 } from './helpers'
 
 const action = Symbol('action')
-const index = Symbol('index')
+const currentIndex = Symbol('currentIndex')
 const names = Symbol('names')
 const meta = Symbol('meta')
 const dispatchReduce = Symbol('dispatchReduce')
@@ -36,25 +36,25 @@ export default class Dodo {
     Arrays.set(this, array)
     if (!Metadata.has(array))
       Metadata.set(array, {
-        index: index,
         columns: new Set(Object.keys(index)),
       })
     this.actions = actions
+    this.index = index
   }
 
   get [meta]() { return Metadata.get(Arrays.get(this)) }
 
-  get [index]() {
+  get [currentIndex]() {
     const lastMapWithIndex = this.actions.filter(act => !!act.I).slice(-1)
 
     if (lastMapWithIndex.length)
       return lastMapWithIndex[0].I
     else
-      return this[meta].index
+      return this.index
   }
 
   get [names]() {
-    const I = this[index]
+    const I = this[currentIndex]
     return Object.keys(I).sort((a, b) => I[a] - I[b])
   }
 
@@ -79,10 +79,10 @@ export default class Dodo {
   [action](action) {
     if (action) {
       return new Dodo(
-        Arrays.get(this), this[meta].index, [...this.actions, action])
+        Arrays.get(this), this.index, [...this.actions, action])
     } else {
       return new Dodo(
-        Arrays.get(this), this[meta].index, [...this.actions])
+        Arrays.get(this), this.index, [...this.actions])
     }
   }
 
@@ -91,7 +91,7 @@ export default class Dodo {
     if (this[names].length == 1) {
       return this[action](filter(fn))
     } else {
-      const I = this[index]
+      const I = this[currentIndex]
       return this[action](filter(row => fn(row, I)))
     }
   }
@@ -99,7 +99,7 @@ export default class Dodo {
   filterBy(name, fn) {
     invariant(name, `Dodo#filterBy(name, fn) - col is required`)
     invariant(isfunc(fn), `Dodo#filterBy(name, fn) - fn not a function`)
-    const col = this[index][name]
+    const col = this[currentIndex][name]
     return this[action]( filter(row => fn(row[col])) )
   }
 
@@ -108,7 +108,7 @@ export default class Dodo {
     if (this[names].length == 1) {
       return this[action](map(fn))
     } else {
-      const I = this[index]
+      const I = this[currentIndex]
       return this[action](map(row => fn(row, I)))
     }
   }
@@ -117,7 +117,7 @@ export default class Dodo {
     invariant(name, `Dodo#filterBy(name, fn) - col is required`)
     invariant(this[meta].columns.has(name),
       `Dodo#col(name) — name ${name} not in index`)
-    const col = this[index][name]
+    const col = this[currentIndex][name]
     const fn = map(row => row[col])
     fn.I = arrayToIndex([name])
     fn.singular = true
@@ -130,7 +130,7 @@ export default class Dodo {
     names.forEach(n => invariant(this[meta].columns.has(n),
       `Dodo#cols(names) - name ${n} not in index`))
 
-    const indices = names.map(name => this[index][name])
+    const indices = names.map(name => this[currentIndex][name])
     const inner = new Function('row', `
       return [${indices.map(i => `row[${i}]`).join(',')}]
     `)
@@ -222,14 +222,14 @@ export default class Dodo {
       `Dodo#group(name) — name ${name} not in index`)
 
     const map = new Map()
-    const grouper = createGrouper(map, fn, this[index][name])
+    const grouper = createGrouper(map, fn, this[currentIndex][name])
     const array = this.toArray()
     const len = array.length
     let i = -1
     while (++i < len) {
       grouper(array[i])
     }
-    map.forEach(arrayToDodo(this[index]))
+    map.forEach(arrayToDodo(this[currentIndex]))
     return Flock(map)
   }
 
