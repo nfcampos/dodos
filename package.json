@@ -34,7 +34,7 @@
   "homepage": "https://github.com/nfcampos/dodos",
   "devDependencies": {
     "ava": "~0.14.0",
-    "babel-cli": "~6.6.5",
+    "babel-cli": "~6.7.5",
     "babel-core": "~6.7.2",
     "babel-eslint": "~6.0.0",
     "babel-loader": "~6.2.4",
@@ -45,7 +45,7 @@
     "d3-dsv": "~0.3.1",
     "eslint": "~2.7.0",
     "husky": "~0.11.4",
-    "npm-check": "~5.1.1",
+    "npm-check": "~5.2.1",
     "nyc": "~6.2.1",
     "rimraf": "~2.5.2",
     "table": "~3.7.8",
