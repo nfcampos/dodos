@@ -7,21 +7,13 @@ import {map, filter, drop, take, transduce} from 'transducers.js'
 
 import {
   identity, combineReducers, REDUCERS, spread, createGrouper, isfunc,
-  arrayToIndex, compose, transduceNoBreak, arrayReducer
+  arrayToIndex, compose, transduceNoBreak, arrayReducer, needSlowCase,
+  dispatchReduce
 } from './helpers'
 
-const action = Symbol('action')
-const currentIndex = Symbol('currentIndex')
-const names = Symbol('names')
-const meta = Symbol('meta')
-const dispatchReduce = Symbol('dispatchReduce')
 const noActions = []
 
 const Arrays = new WeakMap()
-const Metadata = new WeakMap()
-
-const needSlowCase = a =>
-  a.toString().includes('new Take') || a.toString().includes('new Drop')
 
 export default class Dodo {
   constructor(array, index, actions=noActions) {
@@ -29,39 +21,22 @@ export default class Dodo {
       index = arrayToIndex(index)
 
     invariant(Array.isArray(array), `new Dodo(arr, index) - arr is required`)
-    invariant(index , `new Dodo(arr, index) - index is missing`)
-    invariant(Object.keys(index).length == array[0].length,
+    invariant(index === false || actions !== noActions || Object.keys(index).length == array[0].length,
       `new Dodo(arr, index) - index length (${Object.keys(index).length}) != array[0].length (${array[0].length})`)
 
-    Arrays.set(this, array)
-    if (!Metadata.has(array))
-      Metadata.set(array, {
-        columns: new Set(Object.keys(index)),
-      })
-    this.actions = actions
     this.index = index
+    this.actions = actions
+    Arrays.set(this, array)
   }
 
-  get [meta]() { return Metadata.get(Arrays.get(this)) }
-
-  get [currentIndex]() {
-    const lastMapWithIndex = this.actions.filter(act => !!act.I).slice(-1)
-
-    if (lastMapWithIndex.length)
-      return lastMapWithIndex[0].I
-    else
-      return this.index
-  }
-
-  get [names]() {
-    const I = this[currentIndex]
-    return Object.keys(I).sort((a, b) => I[a] - I[b])
+  get columns() {
+    return Object.keys(this.index).sort((a, b) => this.index[a] - this.index[b])
   }
 
   [Symbol.iterator]() { return this.toArray().values() }
 
   toArray() {
-    if (this.actions.length)
+    if (this.actions != noActions)
       return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
         Arrays.get(this),
         compose(this.actions),
@@ -76,94 +51,83 @@ export default class Dodo {
 
   uniq() { return [...new Set(this)] }
 
-  [action](action) {
-    if (action) {
-      return new Dodo(
-        Arrays.get(this), this.index, [...this.actions, action])
-    } else {
-      return new Dodo(
-        Arrays.get(this), this.index, [...this.actions])
-    }
+  transform(transformer, index=this.index) {
+    return new Dodo(Arrays.get(this), index, [...this.actions, transformer])
   }
 
   filter(fn) {
     invariant(isfunc(fn), `Dodo#filter(fn) — fn not a function`)
-    if (this[names].length == 1) {
-      return this[action](filter(fn))
+    if (this.index) {
+      const I = this.index
+      return this.transform(filter(row => fn(row, I)))
     } else {
-      const I = this[currentIndex]
-      return this[action](filter(row => fn(row, I)))
+      return this.transform(filter(fn))
     }
   }
 
   filterBy(name, fn) {
-    invariant(name, `Dodo#filterBy(name, fn) - col is required`)
+    invariant(this.index, `Dodo#filterBy(name, fn) — only available on indexed dodos`)
+    invariant(name, `Dodo#filterBy(name, fn) - name is required`)
     invariant(isfunc(fn), `Dodo#filterBy(name, fn) - fn not a function`)
-    const col = this[currentIndex][name]
-    return this[action]( filter(row => fn(row[col])) )
+    const col = this.index[name]
+    invariant(col != null, `Dodo#col(name) — name ${name} not in index`)
+    return this.transform( filter(row => fn(row[col])) )
   }
 
   map(fn) {
     invariant(isfunc(fn), `Dodo#map(fn) — fn not a function`)
-    if (this[names].length == 1) {
-      return this[action](map(fn))
+    if (this.index) {
+      const I = this.index
+      return this.transform(map(row => fn(row, I)))
     } else {
-      const I = this[currentIndex]
-      return this[action](map(row => fn(row, I)))
+      return this.transform(map(fn))
     }
   }
 
   col(name) {
-    invariant(name, `Dodo#filterBy(name, fn) - col is required`)
-    invariant(this[meta].columns.has(name),
-      `Dodo#col(name) — name ${name} not in index`)
-    const col = this[currentIndex][name]
-    const fn = map(row => row[col])
-    fn.I = arrayToIndex([name])
-    fn.singular = true
-    return this[action](fn)
+    invariant(this.index, `Dodo#col(name) — only available on indexed dodos`)
+    invariant(name, `Dodo#col(name) - name is required`)
+
+    const col = this.index[name]
+    invariant(col != null, `Dodo#col(name) — name ${name} not in index`)
+
+    return this.transform(map(row => row[col]), false)
   }
 
   cols(...names) {
+    invariant(this.index, `Dodo#cols(...names) — only available on indexed dodos`)
     names = names.length ? flatten(names) : undefined
-    invariant(names, `Dodo#cols(names) - names is required`)
-    names.forEach(n => invariant(this[meta].columns.has(n),
-      `Dodo#cols(names) - name ${n} not in index`))
+    invariant(names, `Dodo#cols(...names) - names is required`)
 
-    const indices = names.map(name => this[currentIndex][name])
-    const inner = new Function('row', `
-      return [${indices.map(i => `row[${i}]`).join(',')}]
-    `)
-    const fn = map(inner)
-    fn.I = arrayToIndex(names)
-    return this[action](fn)
+    const indices = names.map(name => this.index[name])
+    indices.forEach(i => invariant(i != null, `Dodo#cols(...names) - name ${this.columns[i]} not in index`))
+
+    const fn = map(new Function('row',`return [${indices.map(i => `row[${i}]`).join(',')}]`))
+    return this.transform(fn, names)
   }
 
   skip(amount) {
     invariant(Number.isFinite(amount), `Dodo#skip(amount) - amount must be a number`)
-    if (amount === 0) return this[action]()
-    invariant(amount > 0, `Dodo#skip(amount) — amount smaller than 0`)
-    return this[action](drop(amount))
+    invariant(amount >= 0, `Dodo#skip(amount) — amount smaller than 0`)
+
+    if (amount === 0)
+      return this
+    else
+      return this.transform(drop(amount))
   }
 
   take(amount) {
     invariant(Number.isFinite(amount), `Dodo#take(amount) - amount must be a number`)
     invariant(amount >= 0, `Dodo#take(amount) — amount smaller than 0`)
-    return this[action](take(amount))
-  }
 
-  [dispatchReduce](fn, initFactory, final) {
-    if (this.actions.find(a => a.singular))
-      return this.reduce(fn, initFactory(), final)
-    else
-      return this.reduceEach(fn, initFactory, final)
+    return this.transform(take(amount))
   }
 
   reduce(fn, init, final=identity) {
     invariant(init != null, `Dodo#reduce(fn, init, final) - init is required`)
     invariant(isfunc(fn), `Dodo#reduce(fn, init, final) — fn not a function`)
-    invariant(isfunc(final),
-      `Dodo#reduce(fn, init, final) — final not a function`)
+    invariant(isfunc(final), `Dodo#reduce(fn, init, final) — final not a function`)
+
     return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
       Arrays.get(this),
       compose(this.actions),
@@ -176,72 +140,65 @@ export default class Dodo {
   }
 
   reduceEach(fn, initFactory, final=identity) {
-    invariant(isfunc(initFactory),
-      `Dodo#reduceEach(fn, initFactory, final) - initFactory not a function`)
-    invariant(isfunc(fn),
-      `Dodo#reduceEach(fn, init, final) — fn not a function`)
-    invariant(isfunc(final),
-      `Dodo#reduceEach(fn, init, final) — final not a function`)
-    const [fns, inits, finals] = unzip(
-      this[names].map(() => [fn, initFactory(), final])
-    )
+    invariant(this.index, `Dodo#reduceEach(fn, initFactory, final?) - only available on indexed dodos`)
+    invariant(isfunc(fn), `Dodo#reduceEach(fn, initFactory, final?) — fn not a function`)
+    invariant(isfunc(initFactory), `Dodo#reduceEach(fn, initFactory, final?) - initFactory not a function`)
+    invariant(isfunc(final), `Dodo#reduceEach(fn, ininitFactory, final?) — final not a function`)
+
+    const [fns, inits, finals] = unzip(this.columns.map(() => [fn, initFactory(), final]))
     return zipObject(
-      this[names],
+      this.columns,
       this.reduce(combineReducers(fns, true), inits, spread(finals))
     )
   }
 
   stats(...methods) {
-    invariant(methods && methods.length,
-      `Dodo#stats(...methods) - at least one method is required`)
-    methods.forEach(m => invariant(typeof m == 'string' && m in REDUCERS,
-      `Dodo#stats(...methods) - method ${m} is not implemented`))
+    invariant(methods && methods.length, `Dodo#stats(...methods) - at least one method is required`)
+    methods.forEach(m => invariant(typeof m == 'string' && m in REDUCERS, `Dodo#stats(...methods) - method ${m} is not implemented`))
+
     const [fns, inits, finals] = zip(...methods.map(m => REDUCERS[m]))
-    return this[dispatchReduce](
+    return dispatchReduce.call(this,
       combineReducers(fns),
       () => inits.map(i => i()),
       spread(finals)
     )
   }
 
-  count() { return this[dispatchReduce](...REDUCERS.count) }
+  count() { return dispatchReduce.call(this, ...REDUCERS.count) }
 
-  sum() { return this[dispatchReduce](...REDUCERS.sum) }
+  sum() { return dispatchReduce.call(this, ...REDUCERS.sum) }
 
-  min() { return this[dispatchReduce](...REDUCERS.min) }
+  min() { return dispatchReduce.call(this, ...REDUCERS.min) }
 
-  max() { return this[dispatchReduce](...REDUCERS.max) }
+  max() { return dispatchReduce.call(this, ...REDUCERS.max) }
 
-  countUniq() { return this[dispatchReduce](...REDUCERS.countUniq) }
+  countUniq() { return dispatchReduce.call(this, ...REDUCERS.countUniq) }
 
-  mean() { return this[dispatchReduce](...REDUCERS.mean) }
+  mean() { return dispatchReduce.call(this, ...REDUCERS.mean) }
 
   groupBy(name, fn) {
-    invariant(name, `Dodo#groupBy(name, fn) - name is required`)
-    invariant(this[meta].columns.has(name),
-      `Dodo#group(name) — name ${name} not in index`)
-
-    const map = new Map()
-    const grouper = createGrouper(map, fn, this[currentIndex][name])
-    const array = this.toArray()
-    const len = array.length
-    let i = -1
-    while (++i < len) {
-      grouper(array[i])
+    if (isfunc(name)) {
+      fn = name
+      name = undefined
     }
-    map.forEach(arrayToDodo(this[currentIndex]))
-    return Flock(map)
+    invariant(this.index ? name : !name, `Dodo#groupBy(name, fn?) — name is required on indexed dodos` )
+    invariant(!name || this.columns.includes(name), `Dodo#groupBy(name?, fn?) — name ${name} not in index`)
+    invariant(!fn || isfunc(fn), `Dodo#groupBy(name?, fn?) — fn not a function`)
+
+    const grouper = createGrouper(fn, name ? this.index[name] : name)
+    const toDodos = map => (map.forEach(arrayToDodo(this.index)), map)
+    return Flock(this.reduce(grouper, new Map(), toDodos))
   }
 
   flock(fn) {
     invariant(isfunc(fn), `Dodo#flock(fn) — fn not a function`)
-    return Flock(fn(this))
+    return Flock(fn.call(this, this))
   }
 }
 
-function arrayToDodo(Index) {
+export function arrayToDodo(index) {
   return function(array, key, map) {
-    map.set(key, new Dodo(array, Index))
+    map.set(key, new Dodo(array, index))
   }
 }
 

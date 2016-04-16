@@ -20,11 +20,11 @@ test('accepts index as array', t => {
 })
 
 test('throws without an array or index', t => {
-  t.throws(() => new Dodo())
-  t.throws(() => new Dodo(table))
-  t.throws(() => new Dodo({notAn: 'array'}))
-  t.throws(() => new Dodo(table, {abc: 0})) // not enough keys
-  t.throws(() => new Dodo(table, Object.keys(index).slice(2)))
+  t.throws(() => new Dodo(), undefined, 'no array')
+  t.throws(() => new Dodo(table), undefined, 'array but no index')
+  t.throws(() => new Dodo({notAn: 'array'}), undefined, 'array not an array')
+  t.throws(() => new Dodo(table, {abc: 0}), undefined, 'object index, not enough keys')
+  t.throws(() => new Dodo(table, Object.keys(index).slice(2)), undefined, 'array index, not enough keys')
 })
 
 test('take', t => {
@@ -45,7 +45,7 @@ test('skip', t => {
     array.slice(3)
   )
   t.deepEqual(dodo.skip(0).toArray(), array)
-  t.truthy(dodo.skip(0) !== dodo)
+  t.truthy(dodo.skip(0) === dodo)
   t.throws(() => dodo.skip('boo'))
   t.throws(() => dodo.skip(-1))
 })
@@ -125,6 +125,15 @@ test('map shorthand: col', t => {
   )
   t.throws(() => dodo.col('some column not in the index'))
   t.throws(() => dodo.col())
+})
+
+test('.col() returns a non-indexed dodo', t => {
+  const dodo = new Dodo(table, index)
+  t.true(dodo.col('Age').index === false)
+  t.throws(() => dodo.col('Age').col('Date'))
+  t.throws(() => dodo.col('Age').cols('Date', 'Age'))
+  t.throws(() => dodo.col('Age').reduceEach((arr, a) => (arr.push(a), arr), []))
+  t.throws(() => dodo.col('Age').filterBy('Date', a => a / 2))
 })
 
 test('map shorthand: cols', t => {
@@ -380,19 +389,53 @@ test('stats sanity checking', t => {
   t.throws(() => dodo.stats('sum', 'median'))
 })
 
-test('groupBy without key function', t => {
+test('groupBy sanity checking', t => {
+  const dodo = new Dodo(table, index)
+  t.throws(() => dodo.groupBy(), null,'indexed dodo throws without name')
+  t.throws(() => dodo.groupBy('NotInIndex'), null,'indexed dodo throws with name not in index')
+  t.throws(() => dodo.groupBy('Age', true), null,'indexed dodo throws without name')
+  t.notThrows(() => dodo.col('Age').groupBy(), null, 'non-indexed dodo does not throw without name')
+  t.throws(() => dodo.col('Age').groupBy('Age'), null,'non-indexed dodo throws with name')
+})
+
+test('groupBy on non-indexed dodo, without key function', t => {
+  const dodo = new Dodo(table, index)
+  const grouped = dodo.col('Age').groupBy()
+  const ageUniques = dodo.col('Age').uniq()
+
+  ageUniques.forEach(uniq => {
+    t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
+    t.true(grouped.get(uniq) instanceof Dodo, `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq).index === false, `index of dodo is false`)
+  })
+})
+
+test('groupBy on non-indexed dodo, with key function', t => {
+  const dodo = new Dodo(table, index)
+  const mapper = age => Math.ceil(age / 3)
+  const grouped = dodo.col('Age').groupBy(mapper)
+  const ageUniques = dodo.col('Age').map(mapper).uniq()
+
+  ageUniques.forEach(uniq => {
+    t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
+    t.true(grouped.get(uniq) instanceof Dodo, `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq).index === false, `index of dodo is false`)
+  })
+})
+
+test('groupBy on indexed dodo, without key function', t => {
   const dodo = new Dodo(table, index)
   const grouped = dodo.groupBy('Age')
   const ageUniques = dodo.col('Age').uniq()
 
   ageUniques.forEach(uniq => {
     t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
-    t.true(grouped.get(uniq) instanceof Dodo,
-      `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq) instanceof Dodo, `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq).index === dodo.index, `index of dodo is index of original dodo`)
   })
 })
 
-test('groupBy with key function', t => {
+test('groupBy on indexed dodo, with key function', t => {
   const dodo = new Dodo(table, index)
   const mapper = age => Math.ceil(age / 3)
   const grouped = dodo.groupBy('Age', mapper)
@@ -400,8 +443,8 @@ test('groupBy with key function', t => {
   const ageUniques = dodo.col('Age').map(mapper).uniq()
   ageUniques.forEach(uniq => {
     t.true(grouped.has(uniq), `uniq ${uniq} is missing`)
-    t.true(grouped.get(uniq) instanceof Dodo,
-      `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq) instanceof Dodo, `value of uniq ${uniq} is not a dodo`)
+    t.true(grouped.get(uniq).index === dodo.index, `index of dodo is index of original dodo`)
   })
 })
 

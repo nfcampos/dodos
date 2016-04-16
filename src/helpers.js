@@ -83,23 +83,56 @@ export const REDUCERS = {
   countUniq: [(set, el) => set.add(el), () => new Set(), set => set.size],
 }
 
-export function createGrouper(map, fn, col) {
+export function createGrouper(fn, col) {
   if (fn) {
-    return function(row) {
-      const key = fn(row[col])
-      map.has(key)
-        ? map.get(key).push(row)
-        : map.set(key, [row])
+    if (col == undefined) {
+      return function(map, row) {
+        const key = fn(row)
+        map.has(key)
+          ? map.get(key).push(row)
+          : map.set(key, [row])
+        return map
+      }
+    } else {
+      return function(map, row) {
+        const key = fn(row[col])
+        map.has(key)
+          ? map.get(key).push(row)
+          : map.set(key, [row])
+        return map
+      }
     }
   } else {
-    return function(row) {
-      const key = row[col]
-      map.has(key)
-        ? map.get(key).push(row)
-        : map.set(key, [row])
+    if (col == undefined) {
+      return function(map, row) {
+        const key = row
+        map.has(key)
+          ? map.get(key).push(row)
+          : map.set(key, [row])
+        return map
+      }
+    } else {
+      return function(map, row) {
+        const key = row[col]
+        map.has(key)
+          ? map.get(key).push(row)
+          : map.set(key, [row])
+        return map
+      }
     }
   }
 }
 
 export const isfunc = fn => fn && typeof fn == 'function'
+
 export const arrayToIndex = arr => zipObject(arr, [...arr.keys()])
+
+export const needSlowCase = a =>
+  a.toString().includes('new Take') || a.toString().includes('new Drop')
+
+export function dispatchReduce(fn, initFactory, final) {
+  if (this.index)
+    return this.reduceEach(fn, initFactory, final)
+  else
+    return this.reduce(fn, initFactory(), final)
+}
