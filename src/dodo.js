@@ -16,7 +16,7 @@ const noActions = []
 const Arrays = new WeakMap()
 
 export default class Dodo {
-  constructor(array, index, actions=noActions) {
+  constructor(array, index=false, actions=noActions) {
     if (Array.isArray(index))
       index = arrayToIndex(index)
 

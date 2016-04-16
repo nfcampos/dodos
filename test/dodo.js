@@ -21,7 +21,6 @@ test('accepts index as array', t => {
 
 test('throws without an array or index', t => {
   t.throws(() => new Dodo(), undefined, 'no array')
-  t.throws(() => new Dodo(table), undefined, 'array but no index')
   t.throws(() => new Dodo({notAn: 'array'}), undefined, 'array not an array')
   t.throws(() => new Dodo(table, {abc: 0}), undefined, 'object index, not enough keys')
   t.throws(() => new Dodo(table, Object.keys(index).slice(2)), undefined, 'array index, not enough keys')
