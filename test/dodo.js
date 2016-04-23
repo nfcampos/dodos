@@ -21,9 +21,36 @@ test('accepts index as array', t => {
 
 test('throws without an array or index', t => {
   t.throws(() => new Dodo(), undefined, 'no array')
-  t.throws(() => new Dodo({notAn: 'array'}), undefined, 'array not an array')
   t.throws(() => new Dodo(table, {abc: 0}), undefined, 'object index, not enough keys')
   t.throws(() => new Dodo(table, Object.keys(index).slice(2)), undefined, 'array index, not enough keys')
+})
+
+test('non-array sources', t => {
+  function* nums() {
+    var i = 1
+    while(i < 10) {
+      yield i++
+    }
+  }
+
+  const set = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+  const expected = [2, 4, 6, 8, 10, 12, 14, 16, 18]
+
+  t.deepEqual(
+    new Dodo(nums()).map(a => a * 2).toArray(),
+    expected
+  )
+  t.deepEqual(
+    new Dodo(set).map(a => a * 2).toArray(),
+    expected
+  )
+  t.deepEqual(
+    new Dodo({a: 1, b: 2, c: 3}).map(a => (++a[1], a)).toArray(),
+    [['a', 2], ['b', 3], ['c', 4]]
+  )
+
+
 })
 
 test('take', t => {

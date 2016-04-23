@@ -7,26 +7,25 @@ import {map, filter, drop, take, transduce} from 'transducers.js'
 
 import {
   identity, combineReducers, REDUCERS, spread, createGrouper, isfunc,
-  arrayToIndex, compose, transduceNoBreak, arrayReducer, needSlowCase,
+  arrayToIndex, compose, transduceNoBreak, push, needSlowCase,
   dispatchReduce
 } from './helpers'
 
 const noActions = []
 
-const Arrays = new WeakMap()
-
 export default class Dodo {
-  constructor(array, index=false, actions=noActions) {
+  constructor(source, index=false, actions=noActions) {
     if (Array.isArray(index))
       index = arrayToIndex(index)
 
-    invariant(Array.isArray(array), `new Dodo(arr, index) - arr is required`)
-    invariant(index === false || actions !== noActions || Object.keys(index).length == array[0].length,
-      `new Dodo(arr, index) - index length (${Object.keys(index).length}) != array[0].length (${array[0].length})`)
+    invariant(source, `new Dodo(source, index) - source is required`)
+    if (Array.isArray(source) && index !== false && actions === noActions)
+      invariant(Object.keys(index).length == source[0].length,
+        `new Dodo(arr, index) - index length (${Object.keys(index).length}) != array[0].length (${source[0].length})`)
 
     this.index = index
     this.actions = actions
-    Arrays.set(this, array)
+    this.source = source
   }
 
   get columns() {
@@ -36,23 +35,20 @@ export default class Dodo {
   [Symbol.iterator]() { return this.toArray().values() }
 
   toArray() {
-    if (this.actions != noActions)
-      return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
-        Arrays.get(this),
-        compose(this.actions),
-        arrayReducer,
-        []
-      )
+    if (this.actions != noActions || !Array.isArray(this.source))
+      return this.reduce(push, [])
     else
-      return Arrays.get(this)
+      return this.source
   }
 
-  get length() { return this.toArray().length }
+  get length() {
+    return this.reduce(REDUCERS.count[0], REDUCERS.count[1](), REDUCERS.count[2])
+  }
 
   uniq() { return [...new Set(this)] }
 
   transform(transformer, index=this.index) {
-    return new Dodo(Arrays.get(this), index, [...this.actions, transformer])
+    return new Dodo(this.source, index, [...this.actions, transformer])
   }
 
   filter(fn) {
@@ -102,8 +98,8 @@ export default class Dodo {
     const indices = names.map(name => this.index[name])
     indices.forEach(i => invariant(i != null, `Dodo#cols(...names) - name ${this.columns[i]} not in index`))
 
-    const fn = map(new Function('row',`return [${indices.map(i => `row[${i}]`).join(',')}]`))
-    return this.transform(fn, names)
+    const fn = new Function('row',`return [${indices.map(i => `row[${i}]`).join(',')}]`)
+    return this.transform(map(fn), names)
   }
 
   skip(amount) {
@@ -128,8 +124,12 @@ export default class Dodo {
     invariant(isfunc(fn), `Dodo#reduce(fn, init, final) — fn not a function`)
     invariant(isfunc(final), `Dodo#reduce(fn, init, final) — final not a function`)
 
-    return (this.actions.some(needSlowCase) ? transduce : transduceNoBreak)(
-      Arrays.get(this),
+    const doer = (!Array.isArray(this.source) || this.actions.some(needSlowCase))
+      ? transduce
+      : transduceNoBreak
+
+    return doer(
+      this.source,
       compose(this.actions),
       {
         ['@@transducer/step']: fn,

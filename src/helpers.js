@@ -2,6 +2,23 @@ import zipObject from 'lodash/zipObject'
 
 export const identity = a => a
 
+export const REDUCERS = {
+  max: [(max, el) => max > el ? max : el, () => -Infinity, identity],
+  min: [(min, el) => min < el ? min : el, () => Infinity, identity],
+  sum: [(sum, el) => sum + el, () => 0, identity],
+  mean: [
+    (stats, el) => {
+      ++stats[0]
+      stats[1] += el
+      return stats
+    },
+    () => [0, 0],
+    ([count, sum]) => sum / count
+  ],
+  count: [count => ++count, () => 0, identity],
+  countUniq: [(set, el) => set.add(el), () => new Set(), set => set.size],
+}
+
 export function compose(funcs) {
   var len = funcs.length
   return function(r) {
@@ -14,24 +31,9 @@ export function compose(funcs) {
   }
 }
 
-export function spread(fns) {
-  const len = fns.length
-  return function(value) {
-    let i = -1
-    while (++i < len) {
-      value[i] = fns[i](value[i])
-    }
-    return value
-  }
-}
-
-export const arrayReducer = {
-  ['@@transducer/result']: identity,
-
-  ['@@transducer/step'](arr, v) {
-    arr.push(v)
-    return arr
-  },
+export function push(arr, v) {
+  arr.push(v)
+  return arr
 }
 
 export function transduceNoBreak(coll, xform, reducer, init) {
@@ -66,21 +68,15 @@ export function combineReducers(fns, spread) {
   }
 }
 
-export const REDUCERS = {
-  max: [(max, el) => max > el ? max : el, () => -Infinity, identity],
-  min: [(min, el) => min < el ? min : el, () => Infinity, identity],
-  sum: [(sum, el) => sum + el, () => 0, identity],
-  mean: [
-    (stats, el) => {
-      ++stats[0]
-      stats[1] += el
-      return stats
-    },
-    () => [0, 0],
-    ([count, sum]) => sum / count
-  ],
-  count: [count => ++count, () => 0, identity],
-  countUniq: [(set, el) => set.add(el), () => new Set(), set => set.size],
+export function spread(fns) {
+  const len = fns.length
+  return function(value) {
+    let i = -1
+    while (++i < len) {
+      value[i] = fns[i](value[i])
+    }
+    return value
+  }
 }
 
 export function createGrouper(fn, col) {
