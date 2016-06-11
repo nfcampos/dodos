@@ -42,7 +42,7 @@
     "babel-preset-es2015": "~6.9.0",
     "babel-require": "~1.0.1",
     "benchmark": "~2.1.0",
-    "d3-dsv": "~0.3.2",
+    "d3-dsv": "~0.4.0",
     "eslint": "~2.12.0",
     "husky": "~0.11.4",
     "npm-check": "~5.2.1",
