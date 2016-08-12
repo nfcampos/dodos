@@ -33,7 +33,7 @@
   },
   "homepage": "https://github.com/nfcampos/dodos",
   "devDependencies": {
-    "ava": "~0.15.0",
+    "ava": "~0.16.0",
     "babel-cli": "~6.10.1",
     "babel-core": "~6.11.4",
     "babel-eslint": "~6.0.3",
