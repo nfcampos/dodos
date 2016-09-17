@@ -48,7 +48,7 @@
     "npm-check": "~5.2.1",
     "nyc": "~6.6.1",
     "rimraf": "~2.5.2",
-    "table": "~3.7.8",
+    "table": "~3.8.0",
     "webpack": "~1.13.0"
   },
   "dependencies": {
